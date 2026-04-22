@@ -1227,18 +1227,15 @@ async function askAria(userMsg) {
     conversationHistory.push({ role: 'assistant', content: fullText });
     setEmotion(emo);
 
-    // 2. Avvia fetch TTS e frase "thinking" vocale IN PARALLELO
+    // 2. Avvia fetch TTS in parallelo alla frase di attesa
     if (PROVIDER === 'gemini' && API_KEY && audioCtx) {
       var ttsPromise = fetchTTS(cleanText).catch(function() { return null; });
 
-      // Frase naturale di attesa pronunciata mentre il TTS scarica
-      var thinkingFrasi = [
-        'Dammi un attimo...', 'Un secondo...', 'Ci penso...',
-        'Vediamo...', 'Aspetta...', 'Mmh, ecco...'
-      ];
+      // Frase di attesa mentre il TTS scarica
+      var thinkingFrasi = ['Dammi un attimo...', 'Un secondo...', 'Ci penso...', 'Vediamo...', 'Mmh, ecco...'];
       var thinkingFrase = thinkingFrasi[Math.floor(Math.random() * thinkingFrasi.length)];
       showSubtitle('aria', thinkingFrase);
-      playShortTTS(thinkingFrase, function() {});  // fire and forget
+      playShortTTS(thinkingFrase, function() {});
 
       goSpeaking();
       setStatus('ARIA sta parlando...', 'speaking');
@@ -1249,12 +1246,16 @@ async function askAria(userMsg) {
         setEmotion('parlando');
         await playWavBuffer(wavBuffer, emo, cleanText);
       } else {
+        // TTS fallito — mostra solo testo, niente voce di sistema
         showSubtitle('aria', cleanText);
-        speakBrowser(cleanText, emo);
+        setEmotion(emo || 'neutra');
+        goIdleAfterSpeaking();
       }
     } else {
+      // Provider non Gemini — solo testo, niente voce
       showSubtitle('aria', cleanText);
-      speak(cleanText, emo);
+      setEmotion(emo || 'neutra');
+      goIdleAfterSpeaking();
     }
 
   } catch (err) {
@@ -1262,7 +1263,8 @@ async function askAria(userMsg) {
     showSubtitle('aria', '⚠️ ' + (err.message || 'Errore connessione.'));
     setStatus('Errore');
     setEmotion('neutra');
-    goIdle();
+    setState('idle');
+    updateMicBtn();
   }
 }
 
@@ -1401,76 +1403,23 @@ async function speak(text, emo) {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   text = text.replace(/\[EMO:[^\]]+\]/g, '').replace(/\*+/g, '').trim();
-  if (!text) return;
+  if (!text) { goIdleAfterSpeaking(); return; }
   goSpeaking();
-  if (PROVIDER === 'gemini' && API_KEY) {
-    try { await speakGeminiTTS(text, emo); return; }
-    catch(e) { console.warn('TTS fallback:', e.message); }
+
+  // Solo Gemini TTS — mai voce di sistema
+  if (PROVIDER === 'gemini' && API_KEY && audioCtx) {
+    try {
+      var wavBuffer = await fetchTTS(text);
+      if (wavBuffer) {
+        setEmotion('parlando');
+        await playWavBuffer(wavBuffer, emo, text);
+        return;
+      }
+    } catch(e) {}
   }
-  speakBrowser(text, emo);
-}
-
-async function speakGeminiTTS(text, emo) {
-  setStatus('ARIA sta parlando...', 'speaking');
-  setEmotion('parlando');
-  document.getElementById('btnStop').style.display = 'flex';
-  isSpeaking = true;
-
-  var voiceName = selectedGeminiVoice || 'Kore';
-
-  var response = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + API_KEY,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: text }] }],
-        generationConfig: {
-          response_modalities: ['AUDIO'],
-          speech_config: {
-            voice_config: {
-              prebuilt_voice_config: { voice_name: voiceName }
-            }
-          }
-        }
-      })
-    }
-  );
-
-  var data = await response.json();
-  if (data.error) throw new Error(data.error.message);
-
-  var b64 = data.candidates[0].content.parts[0].inlineData.data;
-  var pcmData = base64ToArrayBuffer(b64);
-  var wavBuffer = pcmToWav(pcmData, 24000, 1, 16);
-
-  return new Promise(function(resolve) {
-    function onDone() {
-      stopMouthTalk();
-      setStatus('');
-      setEmotion(emo || 'neutra');
-      document.getElementById('btnStop').style.display = 'none';
-      goIdleAfterSpeaking();
-    }
-
-    if (audioCtx) {
-      // Copia del buffer perché decodeAudioData lo consuma
-      var bufCopy = wavBuffer.slice(0);
-      audioCtx.decodeAudioData(bufCopy, function(decoded) {
-        var src = audioCtx.createBufferSource();
-        src.buffer = decoded;
-        src.connect(audioCtx.destination);
-        src.onended = onDone;
-        src.start(0);
-        currentAudio = { pause: function() { try { src.stop(); } catch(e){} } };
-      }, function(err) {
-        // decodeAudioData fallito, usa Audio element
-        playWithAudioElement(wavBuffer, onDone);
-      });
-    } else {
-      playWithAudioElement(wavBuffer, onDone);
-    }
-  });
+  // Fallback silenzioso
+  setEmotion(emo || 'neutra');
+  goIdleAfterSpeaking();
 }
 
 function playWithAudioElement(wavBuffer, onDone) {
@@ -1512,29 +1461,6 @@ function pcmToWav(pcmBuffer, sampleRate, numChannels, bitDepth) {
   var pcmView = new Uint8Array(buf, 44);
   pcmView.set(pcm);
   return buf;
-}
-
-function speakBrowser(text, emo) {
-  if (!window.speechSynthesis) { goIdleAfterSpeaking(); return; }
-  goSpeaking();
-  var utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'it-IT'; utterance.rate = 0.88; utterance.pitch = 1.15;
-  var voices = window.speechSynthesis.getVoices();
-  var v = voices.find(function(v) { return v.lang.startsWith('it'); });
-  if (v) utterance.voice = v;
-  utterance.onstart = function() {
-    setStatus('ARIA sta parlando...', 'speaking');
-    setEmotion('parlando');
-    document.getElementById('btnStop').style.display = 'flex';
-  };
-  utterance.onend = function() {
-    stopMouthTalk();
-    setStatus('');
-    setEmotion(emo || 'neutra');
-    document.getElementById('btnStop').style.display = 'none';
-    goIdleAfterSpeaking();
-  };
-  window.speechSynthesis.speak(utterance);
 }
 
 function stopSpeaking() {
@@ -1590,41 +1516,54 @@ function toggleMic() {
 }
 
 // ─── AVVIA ASCOLTO ───
+var listenAttempts = 0;
+
 function startListening() {
   setState('listening');
+  listenAttempts = 0;
   updateMicBtn();
   setEmotion('ascoltando');
   setStatus('Parla...', 'active');
+  startListeningAttempt();
+}
+
+function startListeningAttempt() {
+  if (VOICE_STATE !== 'listening') return;
 
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SR) {
-    commandRecognition = new SR();
-    commandRecognition.continuous = false;
-    commandRecognition.interimResults = false;
-    commandRecognition.lang = 'it-IT';
-    commandRecognition.onresult = function(e) {
-      var t = e.results[0][0].transcript.trim();
-      if (t) { stopListening(); goThinking(t); }
-    };
-    commandRecognition.onerror = function(err) {
-      if (err.error === 'not-allowed' || err.error === 'network') {
-        startMediaRecorderFallback();
-      } else {
-        stopListening();
-        setState('idle');
-        updateMicBtn();
-      }
-    };
-    commandRecognition.onend = function() {
-      if (VOICE_STATE === 'listening') {
-        stopListening();
-        setState('idle');
-        updateMicBtn();
-      }
-    };
-    try { commandRecognition.start(); return; } catch(e) {}
+  if (!SR) { startMediaRecorderFallback(); return; }
+
+  commandRecognition = new SR();
+  commandRecognition.continuous = false;
+  commandRecognition.interimResults = false;
+  commandRecognition.lang = 'it-IT';
+
+  commandRecognition.onresult = function(e) {
+    var t = e.results[0][0].transcript.trim();
+    if (t) { stopListening(); goThinking(t); }
+  };
+  commandRecognition.onerror = function(err) {
+    if (err.error === 'not-allowed' || err.error === 'network') {
+      startMediaRecorderFallback();
+    }
+    // altri errori: riprova automaticamente
+  };
+  commandRecognition.onend = function() {
+    if (VOICE_STATE !== 'listening') return;
+    // Riavvia automaticamente — Android ferma dopo ~5s di silenzio
+    listenAttempts++;
+    if (listenAttempts < 20) { // max ~100s totali
+      setTimeout(startListeningAttempt, 200);
+    } else {
+      stopListening();
+      setState('idle');
+      updateMicBtn();
+    }
+  };
+  try { commandRecognition.start(); }
+  catch(e) {
+    setTimeout(startListeningAttempt, 300);
   }
-  startMediaRecorderFallback();
 }
 
 function stopListening() {
@@ -1744,6 +1683,7 @@ function stopCountdown() {
 
 // Ascolta durante il countdown — se parla, azzera countdown
 function startListeningDuringCountdown() {
+  if (VOICE_STATE !== 'countdown') return;
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return;
   commandRecognition = new SR();
@@ -1752,21 +1692,18 @@ function startListeningDuringCountdown() {
   commandRecognition.lang = 'it-IT';
   commandRecognition.onresult = function(e) {
     var t = e.results[0][0].transcript.trim();
-    if (t) {
-      stopCountdown();
-      goThinking(t);
-    }
+    if (t) { stopCountdown(); goThinking(t); }
   };
   commandRecognition.onerror = function() {};
   commandRecognition.onend = function() {
-    // Riavvia ascolto se siamo ancora in countdown
+    // Riavvia finché siamo in countdown
     if (VOICE_STATE === 'countdown') {
-      setTimeout(function() {
-        if (VOICE_STATE === 'countdown') startListeningDuringCountdown();
-      }, 300);
+      setTimeout(startListeningDuringCountdown, 200);
     }
   };
-  try { commandRecognition.start(); } catch(e) {}
+  try { commandRecognition.start(); } catch(e) {
+    setTimeout(startListeningDuringCountdown, 300);
+  }
 }
 
 // ─── SALUTO FINALE ───
