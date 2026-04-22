@@ -27,11 +27,11 @@
     font-family: 'Nunito', sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
-    overflow-x: hidden;
+    overflow: hidden;
   }
 
   /* ─── SFONDO ANIMATO ─── */
@@ -283,14 +283,16 @@
 
   /* ─── INPUT AREA ─── */
   .input-area {
-    position: relative; z-index: 2;
-    width: 100%;
-    max-width: 480px;
-    padding: 12px 16px 24px;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 20;
+    padding: 10px 16px 24px;
     display: flex;
     gap: 10px;
     align-items: center;
     background: linear-gradient(to top, var(--bg) 70%, transparent);
+    max-width: 480px;
+    margin: 0 auto;
   }
   .text-input {
     flex: 1;
@@ -370,39 +372,139 @@
   }
   .lang-badge span:hover { color: var(--accent); border-color: var(--accent); }
 
-  /* ─── LAYOUT COLONNE ─── */
+  /* ─── LAYOUT PRINCIPALE ─── */
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+  }
+
   .face-col {
     position: relative; z-index: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
-  }
-  .chat-col {
-    position: relative; z-index: 2;
-    width: 100%;
-    max-width: 480px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  .chat-area {
-    position: relative; z-index: 2;
-    width: 100%;
-    flex: 1;
-    padding: 0 16px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding-bottom: 12px;
+    flex-shrink: 0;
   }
 
-  /* ─── SCROLLBAR ─── */
-  .chat-area::-webkit-scrollbar { width: 3px; }
-  .chat-area::-webkit-scrollbar-track { background: transparent; }
-  .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  /* ─── SOTTOTITOLO ─── */
+  .subtitle-area {
+    position: fixed;
+    bottom: 90px;
+    left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    padding: 0 20px;
+    pointer-events: none;
+  }
+  .subtitle-box {
+    background: rgba(10,11,20,0.82);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 12px 20px;
+    max-width: 420px;
+    width: 100%;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--text);
+    text-align: center;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .subtitle-box.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .subtitle-box.user-sub {
+    color: #c4b5fd;
+    font-style: italic;
+    font-size: 0.88rem;
+  }
+  .subtitle-box .sub-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  /* ─── INDICATORE ASCOLTO ─── */
+  .listen-ring {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .face-container.listening-active .listen-ring {
+    opacity: 1;
+    border-color: var(--accent3);
+    animation: listen-pulse 1s ease-in-out infinite;
+  }
+  @keyframes listen-pulse {
+    0%,100% { transform: scale(1); opacity: 0.8; }
+    50%      { transform: scale(1.06); opacity: 0.4; }
+  }
+
+  /* ─── CHAT AREA (nascosta, solo log) ─── */
+  .chat-col { display: none; }
+  .chat-area { display: none; }
+
+  /* ─── CHAT AREA ─── */
+  .bubble {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .bubble.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.aria {
+    align-self: flex-start;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.aria .bubble-name {
+    font-size: 0.65rem;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .typing-dots {
+    display: flex; gap: 5px; align-items: center;
+    padding: 4px 0;
+  }
+  .typing-dots span {
+    width: 7px; height: 7px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: dot-bounce 1.2s ease-in-out infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+    40% { transform: translateY(-6px); opacity: 1; }
+  }
 
   /* ─── RESPONSIVE LANDSCAPE ─── */
   @media (orientation: landscape) and (max-height: 500px) {
@@ -639,6 +741,7 @@
 
 <!-- FACCIA -->
 <div class="face-container" id="face">
+  <div class="listen-ring"></div>
   <div class="eye left" id="eyeL">
     <div class="iris" id="irisL"><div class="pupil"></div></div>
     <div class="reflection"></div>
@@ -685,10 +788,19 @@
 </div>
 
 <div class="chat-col">
-<!-- CHAT -->
+<!-- CHAT (log nascosto) -->
 <div class="chat-area" id="chatArea"></div>
+</div><!-- fine chat-col -->
 
-<!-- INPUT -->
+<!-- SOTTOTITOLI -->
+<div class="subtitle-area">
+  <div class="subtitle-box" id="subtitleBox">
+    <div class="sub-label" id="subLabel">ARIA</div>
+    <div id="subText"></div>
+  </div>
+</div>
+
+<!-- INPUT sempre visibile -->
 <div class="input-area">
   <input type="text" class="text-input" id="textInput" placeholder="Scrivi un messaggio..." />
   <button class="btn btn-wake" id="btnWake" onclick="toggleWakeWord()" title="Wake word">👁</button>
@@ -696,7 +808,6 @@
   <button class="btn btn-send" id="btnSend" onclick="sendText()">➤</button>
   <button class="btn btn-stop" id="btnStop" onclick="stopSpeaking()">⏹</button>
 </div>
-</div><!-- fine chat-col -->
 
 <script>
 // ═══════════════════════════════════════════════════
@@ -921,7 +1032,10 @@ function setEmotion(emo) {
   };
   var cls = map[emo] || '';
   if (cls) face.classList.add(cls);
-
+  // Anello verde quando ascolta
+  if (emo === 'ascoltando') face.classList.add('listening-active');
+  // Nascondi sottotitolo quando torna neutra (fine risposta)
+  if (emo === 'neutra') hideSubtitle();
   // Anima la bocca
   animateMouth(emo);
 }
@@ -985,7 +1099,30 @@ function stopMouthTalk() {
 // ═══════════════════════════════════════════════════
 // CHAT
 // ═══════════════════════════════════════════════════
+var subtitleTimer = null;
+
+function showSubtitle(who, text) {
+  var box = document.getElementById('subtitleBox');
+  var label = document.getElementById('subLabel');
+  var subText = document.getElementById('subText');
+  if (!box) return;
+  clearTimeout(subtitleTimer);
+  label.textContent = who === 'user' ? 'TU' : 'ARIA';
+  box.className = 'subtitle-box visible' + (who === 'user' ? ' user-sub' : '');
+  subText.textContent = text;
+  // Auto-nascondi dopo 4 secondi per messaggi utente, mai per ARIA (la nasconde onended)
+  if (who === 'user') {
+    subtitleTimer = setTimeout(function() { box.classList.remove('visible'); }, 4000);
+  }
+}
+
+function hideSubtitle() {
+  var box = document.getElementById('subtitleBox');
+  if (box) box.classList.remove('visible');
+}
+
 function addBubble(who, text) {
+  // Mantieni il log nascosto per riferimento
   var area = document.getElementById('chatArea');
   var div = document.createElement('div');
   div.className = 'bubble ' + who;
@@ -999,11 +1136,13 @@ function addBubble(who, text) {
   p.textContent = text;
   div.appendChild(p);
   area.appendChild(div);
-  area.scrollTop = area.scrollHeight;
+  // Mostra come sottotitolo
+  showSubtitle(who, text);
   return div;
 }
 
 function addTyping() {
+  showSubtitle('aria', '...');
   var area = document.getElementById('chatArea');
   var div = document.createElement('div');
   div.className = 'bubble aria';
@@ -1017,7 +1156,6 @@ function addTyping() {
   dots.innerHTML = '<span></span><span></span><span></span>';
   div.appendChild(dots);
   area.appendChild(div);
-  area.scrollTop = area.scrollHeight;
 }
 
 function removeTyping() {
@@ -1055,14 +1193,16 @@ async function askAria(userMsg) {
     var cleanText = fullText.replace(/\[EMO:[^\]]+\]/g, '').trim();
 
     removeTyping();
-    addBubble('aria', cleanText);
     conversationHistory.push({ role: 'assistant', content: fullText });
     setEmotion(emo);
+
+    // Mostra sottotitolo e avvia TTS in parallelo — simultanei
+    showSubtitle('aria', cleanText);
     speak(cleanText, emo);
 
   } catch (err) {
     removeTyping();
-    addBubble('aria', '⚠️ Errore: ' + (err.message || 'Controlla la chiave API e la connessione.'));
+    showSubtitle('aria', '⚠️ ' + (err.message || 'Controlla la chiave API.'));
     setStatus('Errore');
     setEmotion('neutra');
   }
@@ -1379,18 +1519,71 @@ function stopWakeWordListener() {
 }
 
 function onWakeWordDetected() {
-  setEmotion('sorpresa');
+  setEmotion('ascoltando');
   setStatus('👂 Ti ascolto!', 'active');
   document.getElementById('btnMic').classList.add('recording');
   document.getElementById('btnMic').textContent = '⏹';
   isRecording = true;
-  playActivationBeep();
-  setTimeout(function() {
+
+  // Frasi di conferma — scelta casuale per sembrare più naturale
+  var frasi = [
+    'Dimmi pure!',
+    'Ti ascolto.',
+    'Sì, dimmi!',
+    'Eccomi, ti ascolto.',
+    'Dimmi tutto!'
+  ];
+  var frase = frasi[Math.floor(Math.random() * frasi.length)];
+
+  // Pronuncia la frase e poi avvia il microfono
+  speakShort(frase, function() {
     if (recognition) {
       try { recognition.lang = 'it-IT'; recognition.start(); }
       catch(e) { startMediaRecorder(); }
     } else { startMediaRecorder(); }
-  }, 400);
+  });
+}
+
+// Riproduce una frase breve via TTS e chiama callback quando finisce
+async function speakShort(text, callback) {
+  if (!audioCtx || !API_KEY || PROVIDER !== 'gemini') {
+    // Fallback: beep + pausa
+    playActivationBeep();
+    setTimeout(callback, 600);
+    return;
+  }
+  try {
+    var voiceName = selectedGeminiVoice || 'Kore';
+    var response = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + API_KEY,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: text }] }],
+          generationConfig: {
+            response_modalities: ['AUDIO'],
+            speech_config: { voice_config: { prebuilt_voice_config: { voice_name: voiceName } } }
+          }
+        })
+      }
+    );
+    var data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    var b64 = data.candidates[0].content.parts[0].inlineData.data;
+    var wavBuffer = pcmToWav(base64ToArrayBuffer(b64), 24000, 1, 16);
+    var bufCopy = wavBuffer.slice(0);
+    audioCtx.decodeAudioData(bufCopy, function(decoded) {
+      var src = audioCtx.createBufferSource();
+      src.buffer = decoded;
+      src.connect(audioCtx.destination);
+      src.onended = callback;
+      src.start(0);
+    }, function() { playActivationBeep(); setTimeout(callback, 600); });
+  } catch(e) {
+    playActivationBeep();
+    setTimeout(callback, 600);
+  }
 }
 
 function playActivationBeep() {
