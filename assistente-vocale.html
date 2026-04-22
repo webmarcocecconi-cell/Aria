@@ -1183,6 +1183,7 @@ async function askAria(userMsg) {
   setEmotion('pensierosa');
 
   try {
+    // 1. Ottieni testo AI
     var fullText = '';
     if (PROVIDER === 'anthropic') fullText = await callAnthropic();
     else if (PROVIDER === 'gemini') fullText = await callGemini();
@@ -1195,22 +1196,34 @@ async function askAria(userMsg) {
     removeTyping();
     conversationHistory.push({ role: 'assistant', content: fullText });
     setEmotion(emo);
-    showSubtitle('aria', cleanText);
 
-    // Avvia TTS e testo contemporaneamente
-    // Pre-fetch TTS già mentre mostri il testo
+    // 2. Avvia fetch TTS e frase "thinking" vocale IN PARALLELO
     if (PROVIDER === 'gemini' && API_KEY && audioCtx) {
+      var ttsPromise = fetchTTS(cleanText).catch(function() { return null; });
+
+      // Frase naturale di attesa pronunciata mentre il TTS scarica
+      var thinkingFrasi = [
+        'Dammi un attimo...', 'Un secondo...', 'Ci penso...',
+        'Vediamo...', 'Aspetta...', 'Mmh, ecco...'
+      ];
+      var thinkingFrase = thinkingFrasi[Math.floor(Math.random() * thinkingFrasi.length)];
+      showSubtitle('aria', thinkingFrase);
+      playShortTTS(thinkingFrase, function() {});  // fire and forget
+
       goSpeaking();
       setStatus('ARIA sta parlando...', 'speaking');
-      setEmotion('parlando');
       document.getElementById('btnStop').style.display = 'flex';
-      try {
-        var wavBuffer = await fetchTTS(cleanText);
-        await playWavBuffer(wavBuffer, emo);
-      } catch(e) {
+
+      var wavBuffer = await ttsPromise;
+      if (wavBuffer) {
+        setEmotion('parlando');
+        await playWavBuffer(wavBuffer, emo, cleanText);
+      } else {
+        showSubtitle('aria', cleanText);
         speakBrowser(cleanText, emo);
       }
     } else {
+      showSubtitle('aria', cleanText);
       speak(cleanText, emo);
     }
 
@@ -1242,7 +1255,7 @@ async function fetchTTS(text) {
 }
 
 // Riproduce un wavBuffer e chiama goIdleAfterSpeaking quando finisce
-function playWavBuffer(wavBuffer, emo) {
+function playWavBuffer(wavBuffer, emo, subtitleText) {
   return new Promise(function(resolve) {
     function onDone() {
       stopMouthTalk();
@@ -1253,7 +1266,11 @@ function playWavBuffer(wavBuffer, emo) {
       resolve();
       goIdleAfterSpeaking();
     }
-    startMouthTalk();
+    function onStart() {
+      // Mostra sottotitolo SOLO quando l'audio inizia — perfettamente sincronizzato
+      if (subtitleText) showSubtitle('aria', subtitleText);
+      startMouthTalk();
+    }
     if (audioCtx) {
       audioCtx.decodeAudioData(wavBuffer.slice(0), function(decoded) {
         var src = audioCtx.createBufferSource();
@@ -1261,9 +1278,11 @@ function playWavBuffer(wavBuffer, emo) {
         src.connect(audioCtx.destination);
         src.onended = onDone;
         src.start(0);
+        onStart();
         currentAudio = { pause: function() { try { src.stop(); } catch(e){} } };
-      }, function() { playWithAudioElement(wavBuffer, onDone); });
+      }, function() { onStart(); playWithAudioElement(wavBuffer, onDone); });
     } else {
+      onStart();
       playWithAudioElement(wavBuffer, onDone);
     }
   });
