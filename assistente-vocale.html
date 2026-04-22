@@ -352,6 +352,25 @@
     transition: background 0.3s, box-shadow 0.3s, transform 0.15s;
   }
 
+  /* ─── COUNTDOWN RING ─── */
+  .countdown-ring {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .countdown-ring svg { position: absolute; }
+  .countdown-ring span {
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    position: relative; z-index: 1;
+  }
+
   /* ─── LANG BADGE ─── */
   .lang-badge {
     position: relative; z-index: 2;
@@ -803,10 +822,21 @@
 <!-- INPUT sempre visibile -->
 <div class="input-area">
   <input type="text" class="text-input" id="textInput" placeholder="Scrivi un messaggio..." />
-  <button class="btn btn-wake" id="btnWake" onclick="toggleWakeWord()" title="Wake word">👁</button>
   <button class="btn btn-mic" id="btnMic" onclick="toggleMic()">🎤</button>
   <button class="btn btn-send" id="btnSend" onclick="sendText()">➤</button>
   <button class="btn btn-stop" id="btnStop" onclick="stopSpeaking()">⏹</button>
+</div>
+
+<!-- COUNTDOWN ASCOLTO -->
+<div class="countdown-ring" id="countdownRing" style="display:none;">
+  <svg viewBox="0 0 60 60" width="60" height="60">
+    <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(124,109,250,0.2)" stroke-width="4"/>
+    <circle id="countdownArc" cx="30" cy="30" r="26" fill="none" stroke="#7c6dfa"
+      stroke-width="4" stroke-linecap="round"
+      stroke-dasharray="163.4" stroke-dashoffset="0"
+      transform="rotate(-90 30 30)"/>
+  </svg>
+  <span id="countdownNum">10</span>
 </div>
 
 <script>
@@ -1486,6 +1516,7 @@ function pcmToWav(pcmBuffer, sampleRate, numChannels, bitDepth) {
 
 function speakBrowser(text, emo) {
   if (!window.speechSynthesis) { goIdleAfterSpeaking(); return; }
+  goSpeaking();
   var utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'it-IT'; utterance.rate = 0.88; utterance.pitch = 1.15;
   var voices = window.speechSynthesis.getVoices();
@@ -1510,93 +1541,58 @@ function stopSpeaking() {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   stopMouthTalk();
+  stopCountdown();
   document.getElementById('btnStop').style.display = 'none';
-  goIdle();
+  setState('idle');
+  updateMicBtn();
+  setStatus('');
+  hideSubtitle();
 }
 
 // ═══════════════════════════════════════════════════
-// SISTEMA VOCALE — MACCHINA A STATI
+// SISTEMA VOCALE — TAP TO TALK + COUNTDOWN 10s
 // ═══════════════════════════════════════════════════
-// Stati: 'idle' | 'wake' | 'confirm' | 'listening' | 'thinking' | 'speaking'
+// Stati: 'idle' | 'listening' | 'thinking' | 'speaking' | 'countdown'
 var VOICE_STATE = 'idle';
 var mediaRecorder = null;
 var audioChunks = [];
-var wakeRecognition = null;
 var commandRecognition = null;
-var wakeWordEnabled = localStorage.getItem('aria_wake') !== 'false';
-var WAKE_WORDS = ['ciao aria', 'hey aria', 'ehi aria', 'ok aria'];
+var countdownTimer = null;
+var countdownInterval = null;
+var countdownSec = 10;
 
 function setState(s) {
   VOICE_STATE = s;
-  // Aggiorna variabili legacy usate altrove
   isRecording = (s === 'listening');
-  isSpeaking  = (s === 'speaking' || s === 'confirm');
+  isSpeaking  = (s === 'speaking');
+}
+
+function goSpeaking() {
+  setState('speaking');
+  updateMicBtn();
 }
 
 function initSpeechRecognition() {
-  if (wakeWordEnabled) goIdle();
-  updateWakeWordBtn();
-}
-
-// ─── IDLE: ascolta solo wake word ───
-function goIdle() {
   setState('idle');
-  stopAllRecognition();
-  setStatus('');
-  if (!wakeWordEnabled) return;
-  document.getElementById('btnMic').classList.remove('recording');
-  document.getElementById('btnMic').textContent = '🎤';
-
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return;
-  wakeRecognition = new SR();
-  wakeRecognition.continuous = true;
-  wakeRecognition.interimResults = true;
-  wakeRecognition.lang = 'it-IT';
-  setState('wake');
-  setWakeIndicator(true);
-
-  wakeRecognition.onresult = function(e) {
-    if (VOICE_STATE !== 'wake') return;
-    for (var i = e.resultIndex; i < e.results.length; i++) {
-      var text = e.results[i][0].transcript.toLowerCase().trim();
-      if (WAKE_WORDS.some(function(w){ return text.includes(w); })) {
-        goConfirm();
-        return;
-      }
-    }
-  };
-  wakeRecognition.onerror = function() {};
-  wakeRecognition.onend = function() {
-    if (VOICE_STATE === 'wake') {
-      // Riavvia automaticamente
-      setTimeout(function() { if (VOICE_STATE === 'wake') goIdle(); }, 300);
-    }
-  };
-  try { wakeRecognition.start(); } catch(e) {}
 }
 
-// ─── CONFIRM: parla frase di conferma, poi ascolta ───
-function goConfirm() {
-  stopAllRecognition();
-  setState('confirm');
-  setWakeIndicator(false);
-  setEmotion('sorpresa');
-  setStatus('👂 Ti ascolto!', 'active');
-
-  var frasi = ['Dimmi pure!', 'Ti ascolto.', 'Sì, dimmi!', 'Eccomi!', 'Dimmi!'];
-  var frase = frasi[Math.floor(Math.random() * frasi.length)];
-
-  playShortTTS(frase, function() {
-    if (VOICE_STATE === 'confirm') goListening();
-  });
+// ─── PULSANTE MICROFONO ───
+function toggleMic() {
+  if (VOICE_STATE === 'listening') {
+    stopListening();
+    setState('idle');
+    updateMicBtn();
+    return;
+  }
+  if (VOICE_STATE === 'speaking') { stopSpeaking(); return; }
+  if (VOICE_STATE === 'countdown') { stopCountdown(); }
+  startListening();
 }
 
-// ─── LISTENING: ascolta il comando utente ───
-function goListening() {
+// ─── AVVIA ASCOLTO ───
+function startListening() {
   setState('listening');
-  document.getElementById('btnMic').classList.add('recording');
-  document.getElementById('btnMic').textContent = '⏹';
+  updateMicBtn();
   setEmotion('ascoltando');
   setStatus('Parla...', 'active');
 
@@ -1607,49 +1603,57 @@ function goListening() {
     commandRecognition.interimResults = false;
     commandRecognition.lang = 'it-IT';
     commandRecognition.onresult = function(e) {
-      var transcript = e.results[0][0].transcript.trim();
-      goThinking(transcript);
+      var t = e.results[0][0].transcript.trim();
+      if (t) { stopListening(); goThinking(t); }
     };
     commandRecognition.onerror = function(err) {
       if (err.error === 'not-allowed' || err.error === 'network') {
-        goMediaRecorder();
+        startMediaRecorderFallback();
       } else {
-        goIdle();
+        stopListening();
+        setState('idle');
+        updateMicBtn();
       }
     };
     commandRecognition.onend = function() {
-      if (VOICE_STATE === 'listening') goIdle();
+      if (VOICE_STATE === 'listening') {
+        stopListening();
+        setState('idle');
+        updateMicBtn();
+      }
     };
     try { commandRecognition.start(); return; } catch(e) {}
   }
-  goMediaRecorder();
+  startMediaRecorderFallback();
 }
 
-// ─── MEDIA RECORDER fallback ───
-function goMediaRecorder() {
-  if (!navigator.mediaDevices) { goIdle(); return; }
+function stopListening() {
+  if (commandRecognition) { try { commandRecognition.stop(); } catch(e){} commandRecognition = null; }
+  if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch(e){} }
+  setStatus('');
+}
+
+// ─── FALLBACK MEDIA RECORDER ───
+function startMediaRecorderFallback() {
+  if (!navigator.mediaDevices) { setState('idle'); updateMicBtn(); return; }
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(function(stream) {
       audioChunks = [];
-      var mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus' : 'audio/webm';
+      var mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
       mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-      mediaRecorder.ondataavailable = function(e) {
-        if (e.data.size > 0) audioChunks.push(e.data);
-      };
+      mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) audioChunks.push(e.data); };
       mediaRecorder.onstop = function() {
         stream.getTracks().forEach(function(t) { t.stop(); });
-        if (!audioChunks.length) { goIdle(); return; }
-        var blob = new Blob(audioChunks, { type: mimeType });
-        setStatus('Elaboro...', 'thinking');
-        transcribeBlob(blob);
+        if (!audioChunks.length) { setState('idle'); updateMicBtn(); return; }
+        goThinking(null); // null = usa audio blob
+        transcribeBlob(new Blob(audioChunks, { type: mimeType }));
       };
       mediaRecorder.start();
-      setStatus('🔴 Registra... tocca ⏹ per fermare', 'active');
+      setStatus('🔴 Tocca ⏹ per fermare', 'active');
     })
     .catch(function() {
+      setState('idle'); updateMicBtn();
       setStatus('⚠️ Permesso microfono negato');
-      goIdle();
     });
 }
 
@@ -1668,81 +1672,155 @@ async function transcribeBlob(blob) {
           ]}]}) }
       );
       var data = await res.json();
-      if (data.error || !data.candidates) { goIdle(); return; }
+      if (data.error || !data.candidates) { setState('idle'); updateMicBtn(); return; }
       var t = data.candidates[0].content.parts[0].text.trim();
-      if (t) goThinking(t);
-      else goIdle();
+      if (t) askAria(t);
+      else { setState('idle'); updateMicBtn(); }
     };
     reader.readAsDataURL(blob);
-  } catch(e) { goIdle(); }
+  } catch(e) { setState('idle'); updateMicBtn(); }
 }
 
-// ─── THINKING → SPEAKING ───
+// ─── THINKING ───
 function goThinking(transcript) {
   setState('thinking');
-  stopAllRecognition();
-  document.getElementById('btnMic').classList.remove('recording');
-  document.getElementById('btnMic').textContent = '🎤';
-  askAria(transcript);
+  updateMicBtn();
+  if (transcript) askAria(transcript);
 }
 
-// Chiamato da askAria quando arriva la risposta e inizia a parlare
-function goSpeaking() {
-  setState('speaking');
-  setWakeIndicator(false);
-}
-
+// ─── DOPO RISPOSTA: avvia countdown 10s ───
 function goIdleAfterSpeaking() {
   if (VOICE_STATE !== 'speaking') return;
-  if (wakeWordEnabled && conversationHistory.length > 0) {
-    setState('confirm');
-    setEmotion('ascoltando');
-    setStatus('👂 Ti ascolto...', 'active');
-    setTimeout(function() {
-      if (VOICE_STATE !== 'confirm') return;
-      playShortTTS('Ti ascolto...', function() {
-        if (VOICE_STATE === 'confirm') goListening();
-      });
-    }, 200);
+  if (conversationHistory.length > 0) {
+    startCountdown();
   } else {
     setState('idle');
-    setWakeIndicator(false);
-    setTimeout(function() { goIdle(); }, 400);
+    updateMicBtn();
   }
 }
 
-// ─── UTILS ───
-function stopAllRecognition() {
-  if (wakeRecognition) { try { wakeRecognition.stop(); } catch(e){} wakeRecognition = null; }
-  if (commandRecognition) { try { commandRecognition.stop(); } catch(e){} commandRecognition = null; }
-  if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch(e){} }
-}
+// ─── COUNTDOWN 10s ───
+function startCountdown() {
+  setState('countdown');
+  countdownSec = 10;
+  updateMicBtn();
+  setEmotion('ascoltando');
 
-// ─── PULSANTE MICROFONO MANUALE ───
-function toggleMic() {
-  if (VOICE_STATE === 'listening') {
-    // Ferma ascolto
-    stopAllRecognition();
-    goIdle();
-    return;
+  var ring = document.getElementById('countdownRing');
+  var arc  = document.getElementById('countdownArc');
+  var num  = document.getElementById('countdownNum');
+  if (ring) ring.style.display = 'flex';
+
+  function updateArc() {
+    var pct = countdownSec / 10;
+    var circumference = 163.4;
+    if (arc) arc.setAttribute('stroke-dashoffset', circumference * (1 - pct));
+    if (num) num.textContent = countdownSec;
   }
-  if (VOICE_STATE === 'speaking' || VOICE_STATE === 'confirm') {
-    stopSpeaking();
+  updateArc();
+
+  // Avvia ascolto immediato durante il countdown
+  startListeningDuringCountdown();
+
+  countdownInterval = setInterval(function() {
+    countdownSec--;
+    updateArc();
+    if (countdownSec <= 0) {
+      stopCountdown();
+      sayGoodbye();
+    }
+  }, 1000);
+}
+
+function stopCountdown() {
+  clearInterval(countdownInterval);
+  clearTimeout(countdownTimer);
+  countdownInterval = null;
+  countdownTimer = null;
+  var ring = document.getElementById('countdownRing');
+  if (ring) ring.style.display = 'none';
+  stopListening();
+}
+
+// Ascolta durante il countdown — se parla, azzera countdown
+function startListeningDuringCountdown() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  commandRecognition = new SR();
+  commandRecognition.continuous = false;
+  commandRecognition.interimResults = false;
+  commandRecognition.lang = 'it-IT';
+  commandRecognition.onresult = function(e) {
+    var t = e.results[0][0].transcript.trim();
+    if (t) {
+      stopCountdown();
+      goThinking(t);
+    }
+  };
+  commandRecognition.onerror = function() {};
+  commandRecognition.onend = function() {
+    // Riavvia ascolto se siamo ancora in countdown
+    if (VOICE_STATE === 'countdown') {
+      setTimeout(function() {
+        if (VOICE_STATE === 'countdown') startListeningDuringCountdown();
+      }, 300);
+    }
+  };
+  try { commandRecognition.start(); } catch(e) {}
+}
+
+// ─── SALUTO FINALE ───
+function sayGoodbye() {
+  setState('speaking');
+  updateMicBtn();
+  stopListening();
+  var frasi = [
+    'Tocca il microfono quando vuoi continuare!',
+    'Sono qui, toccami quando hai bisogno.',
+    'Premi il microfono se vuoi riprendere.',
+    'A presto! Toccami per ricominciare.'
+  ];
+  var frase = frasi[Math.floor(Math.random() * frasi.length)];
+  showSubtitle('aria', frase);
+  setEmotion('empatica');
+
+  playShortTTS(frase, function() {
+    setState('idle');
+    updateMicBtn();
+    setEmotion('neutra');
+    hideSubtitle();
+  });
+}
+
+// ─── UI ───
+function updateMicBtn() {
+  var btn = document.getElementById('btnMic');
+  if (!btn) return;
+  if (VOICE_STATE === 'listening' || VOICE_STATE === 'countdown') {
+    btn.classList.add('recording');
+    btn.textContent = '⏹';
+  } else {
+    btn.classList.remove('recording');
+    btn.textContent = '🎤';
   }
-  stopAllRecognition();
-  goListening();
 }
 
-function stopMic() {
-  stopAllRecognition();
-  goIdle();
+function stopMic() { stopListening(); setState('idle'); updateMicBtn(); }
+
+function startMediaRecorder() { startMediaRecorderFallback(); }
+
+// wake word rimosso — sostituito da tap-to-talk
+function toggleWakeWord() {}
+function setWakeIndicator() {}
+function updateWakeWordBtn() {
+  var btn = document.getElementById('btnWake');
+  if (btn) btn.style.display = 'none';
 }
 
-// ─── TTS BREVE PER CONFERMA ───
+// ─── TTS BREVE ───
 async function playShortTTS(text, callback) {
   if (!audioCtx || !API_KEY || PROVIDER !== 'gemini') {
-    playActivationBeep();
-    setTimeout(callback, 700);
+    if (callback) setTimeout(callback, 500);
     return;
   }
   try {
@@ -1761,47 +1839,11 @@ async function playShortTTS(text, callback) {
       var src = audioCtx.createBufferSource();
       src.buffer = decoded;
       src.connect(audioCtx.destination);
-      src.onended = callback;
+      src.onended = callback || function(){};
       src.start(0);
-    }, function() { playActivationBeep(); setTimeout(callback, 700); });
-  } catch(e) { playActivationBeep(); setTimeout(callback, 700); }
+    }, function() { if (callback) setTimeout(callback, 500); });
+  } catch(e) { if (callback) setTimeout(callback, 500); }
 }
-
-function playActivationBeep() {
-  try {
-    var ctx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    var osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.25);
-  } catch(e) {}
-}
-
-function setWakeIndicator(active) {
-  var btn = document.getElementById('btnWake');
-  if (!btn) return;
-  if (active) {
-    btn.style.background = 'linear-gradient(135deg, #34d399, #059669)';
-    btn.style.boxShadow = '0 4px 15px rgba(52,211,153,0.5)';
-  } else {
-    btn.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
-    btn.style.boxShadow = 'none';
-  }
-}
-
-function updateWakeWordBtn() { setWakeIndicator(wakeWordEnabled && VOICE_STATE === 'wake'); }
-
-function toggleWakeWord() {
-  wakeWordEnabled = !wakeWordEnabled;
-  localStorage.setItem('aria_wake', wakeWordEnabled ? 'true' : 'false');
-  if (wakeWordEnabled) { goIdle(); addBubble('aria', '👁 Wake word attivo. Dì "Ciao Aria".'); }
-  else { stopAllRecognition(); setState('idle'); setWakeIndicator(false); addBubble('aria', '😴 Wake word disattivato.'); }
-}
-
-function startMediaRecorder() { goMediaRecorder(); }
 
 // ═══════════════════════════════════════════════════
 // INPUT TESTO
