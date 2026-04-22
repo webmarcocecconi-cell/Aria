@@ -85,8 +85,9 @@
       0 0 80px rgba(124,109,250,0.08),
       inset 0 1px 0 rgba(255,255,255,0.05);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
+    padding-top: 42px;
     gap: 28px;
     transition: box-shadow 0.4s ease;
   }
@@ -170,7 +171,49 @@
     96% { transform: scaleY(0.05); }
   }
 
-  /* ─── STATUS ─── */
+  /* ─── NASO ─── */
+  .nose {
+    position: absolute;
+    top: 128px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    transition: all 0.4s ease;
+  }
+  .nostril {
+    width: 8px; height: 6px;
+    background: rgba(124,109,250,0.45);
+    border-radius: 50%;
+    transition: all 0.4s ease;
+  }
+
+  /* Naso per emozione */
+  .face-container.happy .nostril       { width: 9px; height: 7px; background: rgba(124,109,250,0.6); }
+  .face-container.surprised .nostril   { width: 11px; height: 9px; background: rgba(124,109,250,0.7); }
+  .face-container.thinking .nose       { transform: translateX(calc(-50% + 5px)); }
+  .face-container.empathic .nostril    { background: rgba(244,114,182,0.5); }
+  .face-container.speaking .nostril    { animation: nostril-breathe 0.5s ease-in-out infinite alternate; }
+  @keyframes nostril-breathe {
+    from { width: 8px; height: 6px; }
+    to   { width: 11px; height: 9px; }
+  }
+
+  /* ─── BOCCA ─── */
+  .mouth-wrap {
+    position: absolute;
+    top: 155px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90px;
+    height: 44px;
+    transition: all 0.4s ease;
+  }
+  .mouth-svg {
+    width: 100%; height: 100%;
+    overflow: visible;
+    transition: all 0.4s ease;
+  }
   .status-area {
     position: relative; z-index: 2;
     text-align: center;
@@ -189,18 +232,6 @@
   .status-text.thinking { color: var(--accent3); }
 
   /* ─── CHAT AREA ─── */
-  .chat-area {
-    position: relative; z-index: 2;
-    width: 100%;
-    max-width: 480px;
-    flex: 1;
-    padding: 0 16px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding-bottom: 12px;
-  }
   .bubble {
     max-width: 85%;
     padding: 12px 16px;
@@ -312,6 +343,12 @@
     color: white;
     display: none;
   }
+  .btn-wake {
+    background: linear-gradient(135deg, #374151, #4b5563);
+    color: white;
+    font-size: 1rem;
+    transition: background 0.3s, box-shadow 0.3s, transform 0.15s;
+  }
 
   /* ─── LANG BADGE ─── */
   .lang-badge {
@@ -333,10 +370,96 @@
   }
   .lang-badge span:hover { color: var(--accent); border-color: var(--accent); }
 
+  /* ─── LAYOUT COLONNE ─── */
+  .face-col {
+    position: relative; z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+  .chat-col {
+    position: relative; z-index: 2;
+    width: 100%;
+    max-width: 480px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .chat-area {
+    position: relative; z-index: 2;
+    width: 100%;
+    flex: 1;
+    padding: 0 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 12px;
+  }
+
   /* ─── SCROLLBAR ─── */
   .chat-area::-webkit-scrollbar { width: 3px; }
   .chat-area::-webkit-scrollbar-track { background: transparent; }
   .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ─── RESPONSIVE LANDSCAPE ─── */
+  @media (orientation: landscape) and (max-height: 500px) {
+    body { flex-direction: row; align-items: stretch; flex-wrap: wrap; overflow: hidden; height: 100vh; }
+
+    header { padding: 10px 16px 4px; width: 100%; flex-shrink: 0; }
+    header .logo { font-size: 1.2rem; }
+    header .tagline { display: none; }
+
+    /* Colonna sinistra: faccia + badge */
+    .face-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 200px;
+      flex-shrink: 0;
+      padding: 0 8px;
+    }
+
+    .face-container { width: 140px; height: 140px; margin: 6px auto; padding-top: 26px; gap: 18px; }
+    .eye { width: 38px; height: 46px; }
+    .iris { width: 24px; height: 24px; }
+    .pupil { width: 11px; height: 11px; }
+    .reflection { width: 5px; height: 5px; }
+    .nose { top: 80px; }
+    .nostril { width: 5px; height: 4px; }
+    .mouth-wrap { top: 98px; width: 58px; height: 28px; }
+
+    .status-area { height: 18px; margin-bottom: 4px; }
+    .status-text { font-size: 0.62rem; }
+    .lang-badge, .provider-badge { margin-bottom: 2px; }
+    .lang-badge span, .provider-badge span { font-size: 0.55rem; padding: 2px 7px; }
+
+    /* Colonna destra: chat + input */
+    .chat-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      height: 100%;
+      padding-top: 4px;
+    }
+
+    .chat-area { flex: 1; padding: 0 12px 8px; }
+    .input-area { padding: 8px 12px 12px; }
+  }
+
+  /* Tablet portrait */
+  @media (min-width: 600px) and (orientation: portrait) {
+    .face-container { width: 260px; height: 260px; padding-top: 52px; gap: 34px; }
+    .eye { width: 70px; height: 84px; }
+    .iris { width: 44px; height: 44px; }
+    .pupil { width: 21px; height: 21px; }
+    .nose { bottom: 84px; }
+    .mouth-wrap { bottom: 34px; width: 96px; height: 48px; }
+  }
 
   /* ─── MODAL CONFIGURAZIONE ─── */
   .modal-overlay {
@@ -498,6 +621,7 @@
 
 <div class="bg-aura"></div>
 
+<div class="face-col">
 <header>
   <div class="logo">ARIA</div>
   <div class="tagline">Assistente Intelligente · Psicologia &amp; Pedagogia</div>
@@ -513,12 +637,21 @@
     <div class="iris" id="irisR"><div class="pupil"></div></div>
     <div class="reflection"></div>
   </div>
+  <div class="nose" id="nose">
+    <div class="nostril left"></div>
+    <div class="nostril right"></div>
+  </div>
+  <div class="mouth-wrap" id="mouthWrap">
+    <svg class="mouth-svg" id="mouthSvg" viewBox="0 0 80 40" xmlns="http://www.w3.org/2000/svg">
+      <path id="mouthPath" d="M10,20 Q40,30 70,20" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round"/>
+      <rect id="teeth" x="22" y="20" width="36" height="10" rx="5" fill="white" opacity="0"/>
+    </svg>
+  </div>
 </div>
 
 <div class="status-area">
   <div class="status-text" id="statusText">Ciao! Toccami per iniziare 👋</div>
 </div>
-
 <div class="lang-badge">
   <span id="langToggle" onclick="toggleLang()">🌍 IT</span>
 </div>
@@ -528,6 +661,7 @@
 <div class="provider-badge" onclick="openVoiceModal()">
   <span id="voiceBadge">🔊 VOCE</span>
 </div>
+</div><!-- fine face-col -->
 
 <!-- MODAL SELEZIONE VOCE -->
 <div class="modal-overlay hidden" id="voiceModal">
@@ -540,16 +674,19 @@
   </div>
 </div>
 
+<div class="chat-col">
 <!-- CHAT -->
 <div class="chat-area" id="chatArea"></div>
 
 <!-- INPUT -->
 <div class="input-area">
   <input type="text" class="text-input" id="textInput" placeholder="Scrivi un messaggio..." />
+  <button class="btn btn-wake" id="btnWake" onclick="toggleWakeWord()" title="Wake word">👁</button>
   <button class="btn btn-mic" id="btnMic" onclick="toggleMic()">🎤</button>
   <button class="btn btn-send" id="btnSend" onclick="sendText()">➤</button>
   <button class="btn btn-stop" id="btnStop" onclick="stopSpeaking()">⏹</button>
 </div>
+</div><!-- fine chat-col -->
 
 <script>
 // ═══════════════════════════════════════════════════
@@ -757,6 +894,65 @@ function setEmotion(emo) {
   };
   var cls = map[emo] || '';
   if (cls) face.classList.add(cls);
+
+  // Anima la bocca
+  animateMouth(emo);
+}
+
+function animateMouth(emo) {
+  var path = document.getElementById('mouthPath');
+  var teeth = document.getElementById('teeth');
+  if (!path) return;
+
+  // Definizione curve per ogni emozione (SVG path Q = quadratic bezier)
+  // Formato: "M x1,y1 Q cx,cy x2,y2"
+  var mouths = {
+    'felice':    { d: 'M10,15 Q40,38 70,15', teeth: 0.9, stroke: '#c4b5fd' },
+    'pensierosa':{ d: 'M15,22 Q35,18 65,24', teeth: 0, stroke: '#6b7280' },
+    'sorpresa':  { d: 'M20,15 Q40,42 60,15', teeth: 0.7, stroke: '#c4b5fd', open: true },
+    'empatica':  { d: 'M12,20 Q40,32 68,20', teeth: 0, stroke: '#f472b6' },
+    'ascoltando':{ d: 'M15,20 Q40,26 65,20', teeth: 0, stroke: '#7c6dfa' },
+    'parlando':  { d: 'M15,16 Q40,36 65,16', teeth: 0.5, stroke: '#f472b6' },
+    'neutra':    { d: 'M10,20 Q40,26 70,20', teeth: 0, stroke: '#c4b5fd' }
+  };
+
+  var m = mouths[emo] || mouths['neutra'];
+  path.setAttribute('d', m.d);
+  path.setAttribute('stroke', m.stroke);
+  teeth.setAttribute('opacity', m.teeth);
+
+  // Animazione parlando — bocca che si apre e chiude
+  if (emo === 'parlando') {
+    startMouthTalk();
+  } else {
+    stopMouthTalk();
+  }
+}
+
+var mouthTalkInterval = null;
+function startMouthTalk() {
+  if (mouthTalkInterval) return;
+  var open = false;
+  mouthTalkInterval = setInterval(function() {
+    var path = document.getElementById('mouthPath');
+    var teeth = document.getElementById('teeth');
+    if (!path) return;
+    open = !open;
+    if (open) {
+      path.setAttribute('d', 'M18,14 Q40,40 62,14');
+      teeth.setAttribute('opacity', '0.7');
+    } else {
+      path.setAttribute('d', 'M15,18 Q40,32 65,18');
+      teeth.setAttribute('opacity', '0.3');
+    }
+  }, 180);
+}
+
+function stopMouthTalk() {
+  if (mouthTalkInterval) {
+    clearInterval(mouthTalkInterval);
+    mouthTalkInterval = null;
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1065,83 +1261,161 @@ function stopSpeaking() {
 }
 
 // ═══════════════════════════════════════════════════
-// INPUT VOCALE
+// INPUT VOCALE + WAKE WORD
 // ═══════════════════════════════════════════════════
 var mediaRecorder = null;
 var audioChunks = [];
+var wakeRecognition = null;
+var wakeWordEnabled = localStorage.getItem('aria_wake') !== 'false';
+var WAKE_WORDS = ['ciao aria', 'aria', 'hey aria', 'ehi aria', 'ok aria'];
 
 function initSpeechRecognition() {
-  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    recognition = null;
-    return;
-  }
-  recognition = new SpeechRecognition();
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { recognition = null; return; }
+
+  recognition = new SR();
   recognition.continuous = false;
   recognition.interimResults = false;
   recognition.lang = 'it-IT';
-
   recognition.onresult = function(e) {
-    var transcript = e.results[0][0].transcript;
+    var transcript = e.results[0][0].transcript.trim();
     stopMic();
     askAria(transcript);
   };
   recognition.onerror = function(e) {
     stopMic();
-    // Se errore su file://, passa a registrazione MediaRecorder
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'network') {
-      setStatus('Microfono: uso registrazione alternativa', 'active');
       startMediaRecorder();
-    } else {
-      setStatus('Errore mic: ' + e.error);
+    } else { setStatus('Errore mic: ' + e.error); }
+  };
+  recognition.onend = function() { if (isRecording) stopMic(); };
+
+  if (wakeWordEnabled) startWakeWordListener();
+  updateWakeWordBtn();
+}
+
+function startWakeWordListener() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  if (wakeRecognition) { try { wakeRecognition.stop(); } catch(e){} }
+  wakeRecognition = new SR();
+  wakeRecognition.continuous = true;
+  wakeRecognition.interimResults = true;
+  wakeRecognition.lang = 'it-IT';
+  setWakeIndicator(true);
+
+  wakeRecognition.onresult = function(e) {
+    if (isRecording || isSpeaking) return;
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      var text = e.results[i][0].transcript.toLowerCase().trim();
+      if (WAKE_WORDS.some(function(w){ return text.includes(w); })) {
+        wakeRecognition.stop();
+        onWakeWordDetected();
+        return;
+      }
     }
   };
-  recognition.onend = function() {
-    if (isRecording) stopMic();
+  wakeRecognition.onerror = function(e) {
+    if (e.error === 'not-allowed') setWakeIndicator(false);
   };
+  wakeRecognition.onend = function() {
+    if (wakeWordEnabled && !isRecording && !isSpeaking) {
+      setTimeout(function(){ if (wakeWordEnabled && !isRecording) startWakeWordListener(); }, 600);
+    }
+  };
+  try { wakeRecognition.start(); } catch(e){}
+}
+
+function stopWakeWordListener() {
+  setWakeIndicator(false);
+  if (wakeRecognition) { try { wakeRecognition.stop(); } catch(e){} wakeRecognition = null; }
+}
+
+function onWakeWordDetected() {
+  setEmotion('sorpresa');
+  setStatus('👂 Ti ascolto!', 'active');
+  document.getElementById('btnMic').classList.add('recording');
+  document.getElementById('btnMic').textContent = '⏹';
+  isRecording = true;
+  playActivationBeep();
+  setTimeout(function() {
+    if (recognition) {
+      try { recognition.lang = 'it-IT'; recognition.start(); }
+      catch(e) { startMediaRecorder(); }
+    } else { startMediaRecorder(); }
+  }, 400);
+}
+
+function playActivationBeep() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.25);
+  } catch(e){}
+}
+
+function setWakeIndicator(active) {
+  var btn = document.getElementById('btnWake');
+  if (!btn) return;
+  if (active) {
+    btn.style.background = 'linear-gradient(135deg, #34d399, #059669)';
+    btn.style.boxShadow = '0 4px 15px rgba(52,211,153,0.5)';
+    btn.title = 'Wake word attivo — dì "Ciao Aria"';
+  } else {
+    btn.style.background = 'linear-gradient(135deg, #374151, #4b5563)';
+    btn.style.boxShadow = 'none';
+    btn.title = 'Wake word disattivo';
+  }
+}
+
+function updateWakeWordBtn() { setWakeIndicator(wakeWordEnabled); }
+
+function toggleWakeWord() {
+  wakeWordEnabled = !wakeWordEnabled;
+  localStorage.setItem('aria_wake', wakeWordEnabled ? 'true' : 'false');
+  if (wakeWordEnabled) {
+    startWakeWordListener();
+    addBubble('aria', '👁 Wake word attivato! Dimmi "Ciao Aria" per svegliarmi.');
+  } else {
+    stopWakeWordListener();
+    addBubble('aria', '😴 Wake word disattivato. Usa il microfono o la tastiera.');
+  }
 }
 
 function toggleMic() {
   if (isRecording) { stopMic(); return; }
   if (isSpeaking) stopSpeaking();
-
+  if (wakeRecognition) { try { wakeRecognition.stop(); } catch(e){} }
   isRecording = true;
   document.getElementById('btnMic').classList.add('recording');
   document.getElementById('btnMic').textContent = '⏹';
   setStatus('In ascolto... parla ora', 'active');
   setEmotion('ascoltando');
-
-  // Prova prima webkitSpeechRecognition
   if (recognition) {
-    try {
-      recognition.lang = 'it-IT';
-      recognition.start();
-      return;
-    } catch(e) {}
+    try { recognition.lang = 'it-IT'; recognition.start(); return; } catch(e){}
   }
-  // Fallback diretto a MediaRecorder + Gemini STT
   startMediaRecorder();
 }
 
 function startMediaRecorder() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    stopMic();
-    setStatus('Microfono non supportato su questo browser');
-    return;
+    stopMic(); setStatus('Microfono non supportato'); return;
   }
   navigator.mediaDevices.getUserMedia({ audio: true })
     .then(function(stream) {
       audioChunks = [];
-      // Scegli formato supportato
       var mimeType = 'audio/webm;codecs=opus';
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/webm';
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'audio/ogg';
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
-
       mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType: mimeType } : {});
-      mediaRecorder.ondataavailable = function(e) {
-        if (e.data.size > 0) audioChunks.push(e.data);
-      };
+      mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) audioChunks.push(e.data); };
       mediaRecorder.onstop = function() {
         stream.getTracks().forEach(function(t) { t.stop(); });
         if (audioChunks.length === 0) { stopMic(); return; }
@@ -1152,61 +1426,50 @@ function startMediaRecorder() {
       mediaRecorder.start();
       setStatus('🔴 Registrazione... tocca ⏹ per fermare', 'active');
     })
-    .catch(function(err) {
+    .catch(function() {
       stopMic();
       setStatus('⚠️ Permesso microfono negato');
-      addBubble('aria', '⚠️ Non riesco ad accedere al microfono. Controlla i permessi del browser nelle impostazioni Android.');
+      addBubble('aria', '⚠️ Non riesco ad accedere al microfono. Controlla i permessi del browser.');
     });
 }
 
 async function transcribeWithGemini(audioBlob) {
   try {
-    // Converti blob in base64
     var reader = new FileReader();
     reader.onloadend = async function() {
       var b64 = reader.result.split(',')[1];
       var mimeType = audioBlob.type.split(';')[0] || 'audio/webm';
-
       var response = await fetch(
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + API_KEY,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{
-              parts: [
-                { inline_data: { mime_type: mimeType, data: b64 } },
-                { text: 'Trascrivi esattamente quello che viene detto in questo audio. Rispondi solo con la trascrizione, senza aggiungere nulla.' }
-              ]
-            }]
+            contents: [{ parts: [
+              { inline_data: { mime_type: mimeType, data: b64 } },
+              { text: 'Trascrivi esattamente quello che viene detto in questo audio. Rispondi solo con la trascrizione, senza aggiungere nulla.' }
+            ]}]
           })
         }
       );
       var data = await response.json();
       stopMic();
-      if (data.error) {
-        setStatus('Errore trascrizione');
-        return;
-      }
+      if (data.error) { setStatus('Errore trascrizione'); return; }
       var transcript = data.candidates[0].content.parts[0].text.trim();
       if (transcript) askAria(transcript);
     };
     reader.readAsDataURL(audioBlob);
-  } catch(err) {
-    stopMic();
-    setStatus('Errore trascrizione');
-  }
+  } catch(err) { stopMic(); setStatus('Errore trascrizione'); }
 }
 
 function stopMic() {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    mediaRecorder.stop();
-  }
-  if (recognition) { try { recognition.stop(); } catch(e) {} }
+  if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+  if (recognition) { try { recognition.stop(); } catch(e){} }
   isRecording = false;
   document.getElementById('btnMic').classList.remove('recording');
   document.getElementById('btnMic').textContent = '🎤';
   if (!isSpeaking) setStatus('');
+  if (wakeWordEnabled) setTimeout(function(){ if (!isRecording) startWakeWordListener(); }, 800);
 }
 
 // ═══════════════════════════════════════════════════
