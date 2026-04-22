@@ -1178,7 +1178,6 @@ async function askAria(userMsg) {
   addBubble('user', userMsg);
   conversationHistory.push({ role: 'user', content: userMsg });
   setState('thinking');
-
   addTyping();
   setStatus('ARIA sta pensando...', 'thinking');
   setEmotion('pensierosa');
@@ -1197,7 +1196,23 @@ async function askAria(userMsg) {
     conversationHistory.push({ role: 'assistant', content: fullText });
     setEmotion(emo);
     showSubtitle('aria', cleanText);
-    speak(cleanText, emo);
+
+    // Avvia TTS e testo contemporaneamente
+    // Pre-fetch TTS già mentre mostri il testo
+    if (PROVIDER === 'gemini' && API_KEY && audioCtx) {
+      goSpeaking();
+      setStatus('ARIA sta parlando...', 'speaking');
+      setEmotion('parlando');
+      document.getElementById('btnStop').style.display = 'flex';
+      try {
+        var wavBuffer = await fetchTTS(cleanText);
+        await playWavBuffer(wavBuffer, emo);
+      } catch(e) {
+        speakBrowser(cleanText, emo);
+      }
+    } else {
+      speak(cleanText, emo);
+    }
 
   } catch (err) {
     removeTyping();
@@ -1206,6 +1221,52 @@ async function askAria(userMsg) {
     setEmotion('neutra');
     goIdle();
   }
+}
+
+// Fetch pura del TTS — restituisce wavBuffer
+async function fetchTTS(text) {
+  var voiceName = selectedGeminiVoice || 'Kore';
+  var response = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + API_KEY,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: text }] }],
+        generationConfig: { response_modalities: ['AUDIO'],
+          speech_config: { voice_config: { prebuilt_voice_config: { voice_name: voiceName } } } }
+      }) }
+  );
+  var data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  var b64 = data.candidates[0].content.parts[0].inlineData.data;
+  return pcmToWav(base64ToArrayBuffer(b64), 24000, 1, 16);
+}
+
+// Riproduce un wavBuffer e chiama goIdleAfterSpeaking quando finisce
+function playWavBuffer(wavBuffer, emo) {
+  return new Promise(function(resolve) {
+    function onDone() {
+      stopMouthTalk();
+      setStatus('');
+      setEmotion(emo || 'neutra');
+      document.getElementById('btnStop').style.display = 'none';
+      hideSubtitle();
+      resolve();
+      goIdleAfterSpeaking();
+    }
+    startMouthTalk();
+    if (audioCtx) {
+      audioCtx.decodeAudioData(wavBuffer.slice(0), function(decoded) {
+        var src = audioCtx.createBufferSource();
+        src.buffer = decoded;
+        src.connect(audioCtx.destination);
+        src.onended = onDone;
+        src.start(0);
+        currentAudio = { pause: function() { try { src.stop(); } catch(e){} } };
+      }, function() { playWithAudioElement(wavBuffer, onDone); });
+    } else {
+      playWithAudioElement(wavBuffer, onDone);
+    }
+  });
 }
 
 async function callAnthropic() {
@@ -1614,20 +1675,20 @@ function goSpeaking() {
 
 function goIdleAfterSpeaking() {
   if (VOICE_STATE !== 'speaking') return;
-  // Se c'è già una conversazione avviata e wake word è attivo,
-  // di' "Ti ascolto" e vai direttamente in ascolto
   if (wakeWordEnabled && conversationHistory.length > 0) {
+    setState('confirm');
+    setEmotion('ascoltando');
+    setStatus('👂 Ti ascolto...', 'active');
     setTimeout(function() {
-      if (VOICE_STATE !== 'idle' && VOICE_STATE !== 'wake') return;
+      if (VOICE_STATE !== 'confirm') return;
       playShortTTS('Ti ascolto...', function() {
         if (VOICE_STATE === 'confirm') goListening();
       });
-      setState('confirm');
-      setEmotion('ascoltando');
-      setStatus('👂 Ti ascolto...', 'active');
-    }, 400);
+    }, 200);
   } else {
-    setTimeout(function() { goIdle(); }, 600);
+    setState('idle');
+    setWakeIndicator(false);
+    setTimeout(function() { goIdle(); }, 400);
   }
 }
 
