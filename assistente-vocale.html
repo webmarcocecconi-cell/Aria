@@ -586,6 +586,16 @@
 </head>
 <body>
 
+<!-- OVERLAY SBLOCCO AUDIO -->
+<div class="modal-overlay" id="audioUnlockOverlay" style="z-index:200;">
+  <div class="modal-box" style="text-align:center;">
+    <div style="font-size:3rem;margin-bottom:12px;">🔊</div>
+    <div class="modal-title">TOCCA PER INIZIARE</div>
+    <div class="modal-sub" style="margin:8px 0 20px;">Chrome richiede un tocco per attivare l'audio</div>
+    <button class="btn-confirm" onclick="unlockAudio()">✓ Attiva ARIA</button>
+  </div>
+</div>
+
 <!-- MODAL CONFIGURAZIONE -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-box">
@@ -696,11 +706,46 @@ var API_KEY = '';
 var PROVIDER = 'gemini';
 var LANG = 'it';
 var selectedVoiceName = localStorage.getItem('aria_voice') || '';
+var selectedGeminiVoice = localStorage.getItem('aria_gemini_voice') || 'Kore';
 var isRecording = false;
 var isSpeaking = false;
 var recognition = null;
 var currentUtterance = null;
+var currentAudio = null;
+var audioCtx = null;  // AudioContext sbloccato
 var conversationHistory = [];
+
+function unlockAudio() {
+  // Crea e sblocca AudioContext con interazione utente
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Riproduce 0.1s di silenzio per sbloccare
+    var buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+    var src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start();
+  } catch(e) {}
+  document.getElementById('audioUnlockOverlay').classList.add('hidden');
+  // Mostra modal configurazione se necessario
+  var savedKey = localStorage.getItem('aria_api_key');
+  var savedProvider = localStorage.getItem('aria_provider');
+  if (savedKey && savedProvider) {
+    API_KEY = savedKey;
+    PROVIDER = savedProvider;
+    closeModal();
+    updateProviderBadge();
+    if (selectedVoiceName) {
+      document.getElementById('voiceBadge').textContent = '🔊 ' + selectedVoiceName.split(' ')[0].toUpperCase();
+    }
+    addBubble('aria', 'Ciao! Sono ARIA 💜 Sono felice di conoscerti! Di cosa vuoi che parliamo?');
+    setEmotion('felice');
+    speak('Ciao! Sono ARIA, sono qui per te. Di cosa vuoi parlare?', 'felice');
+  } else {
+    selectProvider('gemini');
+  }
+  initSpeechRecognition();
+}
 
 var PROVIDER_INFO = {
   anthropic: { icon: '🟣', label: 'ANTHROPIC', hint: '🟣 <strong>Anthropic Claude</strong> — A pagamento, qualità massima.<br>Chiave su <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>' },
@@ -714,35 +759,17 @@ var SYSTEM_PROMPT = 'Sei ARIA, un\'assistente vocale con una personalità genuin
 // INIT
 // ═══════════════════════════════════════════════════
 window.onload = function() {
-  var savedKey = localStorage.getItem('aria_api_key');
-  var savedProvider = localStorage.getItem('aria_provider');
-  if (savedKey && savedProvider) {
-    API_KEY = savedKey;
-    PROVIDER = savedProvider;
-    closeModal();
-    updateProviderBadge();
-    if (selectedVoiceName) {
-      document.getElementById('voiceBadge').textContent = '🔊 ' + selectedVoiceName.split(' ')[0].toUpperCase();
-    }
-    addBubble('aria', 'Ciao! Sono ARIA 💜 Sono felice di conoscerti! Puoi parlarmi o scrivermi — sono qui per te. Di cosa vuoi che parliamo?');
-    setEmotion('felice');
-  } else {
-    selectProvider('gemini');
-  }
-
   document.addEventListener('touchmove', function(e) {
-    var t = e.touches[0];
-    moveEyes(t.clientX, t.clientY);
+    moveEyes(e.touches[0].clientX, e.touches[0].clientY);
   });
   document.addEventListener('mousemove', function(e) {
     moveEyes(e.clientX, e.clientY);
   });
-
   document.getElementById('textInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') sendText();
   });
-
-  initSpeechRecognition();
+  // Mostra overlay sblocco audio (obbligatorio su Chrome mobile)
+  document.getElementById('audioUnlockOverlay').classList.remove('hidden');
 };
 
 function selectProvider(p) {
@@ -1172,28 +1199,47 @@ async function speakGeminiTTS(text, emo) {
 
   var b64 = data.candidates[0].content.parts[0].inlineData.data;
   var pcmData = base64ToArrayBuffer(b64);
-
-  // Converti PCM s16le 24kHz mono → WAV e riproduci
   var wavBuffer = pcmToWav(pcmData, 24000, 1, 16);
+
+  return new Promise(function(resolve) {
+    function onDone() {
+      isSpeaking = false;
+      stopMouthTalk();
+      setStatus('');
+      setEmotion(emo || 'neutra');
+      document.getElementById('btnStop').style.display = 'none';
+      if (wakeWordEnabled) setTimeout(function(){ if (!isRecording) startWakeWordListener(); }, 500);
+      resolve();
+    }
+
+    if (audioCtx) {
+      // Copia del buffer perché decodeAudioData lo consuma
+      var bufCopy = wavBuffer.slice(0);
+      audioCtx.decodeAudioData(bufCopy, function(decoded) {
+        var src = audioCtx.createBufferSource();
+        src.buffer = decoded;
+        src.connect(audioCtx.destination);
+        src.onended = onDone;
+        src.start(0);
+        currentAudio = { pause: function() { try { src.stop(); } catch(e){} } };
+      }, function(err) {
+        // decodeAudioData fallito, usa Audio element
+        playWithAudioElement(wavBuffer, onDone);
+      });
+    } else {
+      playWithAudioElement(wavBuffer, onDone);
+    }
+  });
+}
+
+function playWithAudioElement(wavBuffer, onDone) {
   var blob = new Blob([wavBuffer], { type: 'audio/wav' });
   var url = URL.createObjectURL(blob);
-
-  currentAudio = new Audio(url);
-  currentAudio.onended = function() {
-    isSpeaking = false;
-    setStatus('');
-    setEmotion(emo || 'neutra');
-    document.getElementById('btnStop').style.display = 'none';
-    URL.revokeObjectURL(url);
-    currentAudio = null;
-  };
-  currentAudio.onerror = function() {
-    isSpeaking = false;
-    setStatus('');
-    document.getElementById('btnStop').style.display = 'none';
-    currentAudio = null;
-  };
-  currentAudio.play();
+  var audio = new Audio(url);
+  currentAudio = audio;
+  audio.onended = function() { URL.revokeObjectURL(url); onDone(); };
+  audio.onerror = function() { URL.revokeObjectURL(url); onDone(); };
+  audio.play().catch(function() { onDone(); });
 }
 
 function base64ToArrayBuffer(b64) {
@@ -1256,6 +1302,7 @@ function stopSpeaking() {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   isSpeaking = false;
+  stopMouthTalk();
   document.getElementById('btnStop').style.display = 'none';
   setStatus('');
 }
@@ -1348,7 +1395,7 @@ function onWakeWordDetected() {
 
 function playActivationBeep() {
   try {
-    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var ctx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
     var osc = ctx.createOscillator();
     var gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
