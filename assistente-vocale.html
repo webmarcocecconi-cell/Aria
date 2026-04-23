@@ -2,628 +2,195 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Aria - La tua assistente amica</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aria - Assistente Virtuale</title>
     <style>
-        * {
-            box-sizing: border-box;
-            user-select: none; /* Evita selezioni casuali su mobile */
+        :root {
+            --bg-color: #f0f4f8;
+            --aria-color: #333;
+        }
+        body, html {
+            margin: 0; padding: 0; height: 100%; overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            transition: background-color 1s ease;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background: linear-gradient(145deg, #f9f3e6 0%, #ffe6d5 100%);
-            font-family: 'Segoe UI', 'Quicksand', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            touch-action: manipulation;
+        /* Faccia di Aria */
+        #face-container {
+            position: relative; width: 300px; height: 300px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-
-        /* Contenitore principale */
-        .app-container {
-            width: 100%;
-            max-width: 550px;
-            margin: 20px auto;
-            padding: 20px 20px 40px;
-            background: rgba(255, 248, 235, 0.9);
-            border-radius: 72px 72px 64px 64px;
-            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 215, 175, 0.6);
-            text-align: center;
-            backdrop-filter: blur(2px);
-        }
-
-        /* AREA VOLTO */
-        .face {
-            position: relative;
-            width: 280px;
-            height: 280px;
-            margin: 0 auto 20px;
-            background: #FFE1B9;
-            border-radius: 50%;
-            box-shadow: 0 20px 30px rgba(0, 0, 0, 0.15), inset 0 -8px 0 #E6BC8C;
-            transition: all 0.2s ease;
-        }
-
-        /* Occhi */
-        .eyes {
-            position: absolute;
-            top: 95px;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: space-evenly;
-            padding: 0 45px;
-        }
+        .eyes-container { display: flex; gap: 60px; margin-bottom: 20px; }
         .eye {
-            width: 60px;
-            height: 60px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 6px 0 #c29a6b;
-            transition: all 0.12s linear;
+            width: 60px; height: 80px; background: white; border-radius: 50%;
+            position: relative; border: 3px solid #333; overflow: hidden;
+            transition: all 0.3s ease;
         }
         .pupil {
-            width: 32px;
-            height: 32px;
-            background: #2E241F;
-            border-radius: 50%;
-            transition: all 0.08s ease;
-            position: relative;
+            width: 30px; height: 30px; background: #333; border-radius: 50%;
+            position: absolute; left: 15px; top: 25px; transition: all 0.2s ease;
         }
-        /* riflesso occhio */
-        .pupil::after {
-            content: "";
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: white;
-            border-radius: 50%;
-            top: 6px;
-            left: 7px;
-            opacity: 0.8;
-        }
-
-        /* Sopracciglia (per esprimere meglio) */
-        .brows {
-            position: absolute;
-            top: 65px;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: space-evenly;
-            padding: 0 50px;
-        }
-        .brow {
-            width: 48px;
-            height: 14px;
-            background: #5e3a2c;
-            border-radius: 20px;
-            transition: all 0.2s;
-        }
-
-        /* Bocca */
-        .mouth {
-            position: absolute;
-            bottom: 75px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90px;
-            height: 50px;
-            background: #d98f5c;
-            border-radius: 0 0 40px 40px;
-            transition: all 0.15s ease;
-            overflow: hidden;
-        }
-        .mouth-inner {
-            width: 100%;
-            height: 100%;
-            background: #b45a3a;
-            border-radius: 50%;
-            transition: all 0.1s;
-        }
-
-        /* naso simpatico */
         .nose {
-            position: absolute;
-            top: 160px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 28px;
-            height: 24px;
-            background: #e7b382;
-            border-radius: 50% 50% 40% 40%;
-            box-shadow: inset -2px -2px 0 #c98653;
+            width: 15px; height: 10px; border-bottom: 3px solid #333;
+            border-radius: 50%; margin-bottom: 20px;
+        }
+        .mouth {
+            width: 60px; height: 10px; border-bottom: 4px solid #333;
+            border-radius: 50%; transition: all 0.3s ease;
         }
 
-        /* sottotitoli (stile pop-up che scompare) */
-        .subtitle-area {
-            margin: 25px 16px 20px;
-            min-height: 85px;
-            background: rgba(0, 0, 0, 0.65);
-            backdrop-filter: blur(12px);
-            border-radius: 50px;
-            padding: 16px 20px;
-            transition: all 0.2s;
-        }
-        .subtitle-text {
-            color: white;
-            font-size: 1.4rem;
-            font-weight: 500;
-            word-break: break-word;
-            text-shadow: 0 1px 2px black;
-            letter-spacing: -0.2px;
-            font-family: 'Quicksand', sans-serif;
+        /* Sottotitoli */
+        #subtitles {
+            position: fixed; bottom: 10%; width: 80%; text-align: center;
+            font-size: 1.2rem; color: #444; min-height: 3rem;
+            padding: 10px; background: rgba(255,255,255,0.7); border-radius: 15px;
+            display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
-        /* stato e comandi */
-        .status {
-            background: #fce5cf;
-            padding: 10px 18px;
-            border-radius: 60px;
-            display: inline-block;
-            font-weight: 600;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-            color: #9b5a2e;
+        /* Setup Modal */
+        #setup {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 100; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
         }
+        input, select, button { margin: 10px; padding: 12px; border-radius: 8px; border: 1px solid #ccc; width: 80%; max-width: 300px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
 
-        button {
-            background: #ffb882;
-            border: none;
-            font-size: 1rem;
-            font-weight: bold;
-            padding: 12px 24px;
-            border-radius: 60px;
-            margin: 8px;
-            color: #442d1c;
-            cursor: pointer;
-            transition: 0.1s linear;
-            box-shadow: 0 5px 0 #b46230;
-            touch-action: manipulation;
-        }
-        button:active {
-            transform: translateY(3px);
-            box-shadow: 0 2px 0 #b46230;
-        }
-
-        .memory-btn {
-            background: #c9af91;
-            box-shadow: 0 5px 0 #7e5c3e;
-        }
-        footer {
-            font-size: 0.7rem;
-            margin-top: 30px;
-            color: #a9794b;
-        }
-
-        @media (max-width: 500px) {
-            .face { width: 240px; height: 240px; }
-            .eye { width: 48px; height: 48px; }
-            .pupil { width: 26px; height: 26px; }
-            .mouth { width: 70px; height: 40px; bottom: 60px; }
-            .subtitle-text { font-size: 1.2rem; }
-        }
+        /* Animazioni */
+        .blink { animation: blink 4s infinite; }
+        @keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+        .talking .mouth { animation: talk 0.3s infinite alternate; border-radius: 20%; height: 20px; }
+        @keyframes talk { from { height: 5px; } to { height: 25px; } }
+        .listening .eye { border-color: #007bff; box-shadow: 0 0 15px rgba(0,123,255,0.5); }
     </style>
 </head>
 <body>
-<div class="app-container">
-    <div class="status" id="statusMsg">💜 Pronta, dimmi "Aria"</div>
 
-    <!-- Volto animato -->
-    <div class="face" id="faceContainer">
-        <div class="brows">
-            <div class="brow" id="leftBrow"></div>
-            <div class="brow" id="rightBrow"></div>
-        </div>
-        <div class="eyes">
-            <div class="eye"><div class="pupil" id="pupilL"></div></div>
-            <div class="eye"><div class="pupil" id="pupilR"></div></div>
+    <div id="setup">
+        <h2>Benvenuto, sono Aria</h2>
+        <input type="text" id="api-key" placeholder="Inserisci OpenAI API Key">
+        <input type="number" id="user-age" placeholder="La tua età">
+        <select id="user-gender">
+            <option value="M">Uomo / Bambino</option>
+            <option value="F">Donna / Bambina</option>
+        </select>
+        <button onclick="saveSetup()">Inizia</button>
+    </div>
+
+    <div id="face-container" onclick="startListening()">
+        <div class="eyes-container">
+            <div class="eye blink" id="eye-l"><div class="pupil"></div></div>
+            <div class="eye blink" id="eye-r"><div class="pupil"></div></div>
         </div>
         <div class="nose"></div>
-        <div class="mouth" id="mouthShape">
-            <div class="mouth-inner" id="mouthInner"></div>
-        </div>
+        <div class="mouth" id="mouth"></div>
     </div>
 
-    <div class="subtitle-area" id="subtitleBox">
-        <div class="subtitle-text" id="subtitleText">✨ Ciao! Sono Aria ✨</div>
-    </div>
+    <div id="subtitles"></div>
 
-    <div>
-        <button id="forgetBtn" class="memory-btn">🧠 Dimentica tutto</button>
-        <button id="restartMicBtn">🎤 Riascolta "Aria"</button>
-    </div>
-    <footer>🔊 dì "Aria"… rispondo con voce e dolcezza</footer>
-</div>
-
-<script>
-    // -----------------------------  ARIA - Assistente Vocale con memoria e volto -------------------------
-    // Web Speech API (riconoscimento + sintesi)
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
-    let synth = window.speechSynthesis;
-    let speaking = false;    // per gestire sottotitoli
-    let currentUtterance = null;
-    
-    // Memoria persistente (IndexedDB)
-    let db = null;
-    const DB_NAME = "AriaMemoryDB";
-    const STORE_NAME = "userProfile";
-    let userMemory = {         // dati che ricordiamo dell'utente
-        name: null,
-        age: null,
-        type: "bambino",       // default, poi auto rileva
-        preferences: [],
-        lastTopics: [],
-        interactions: [],     // storico brevi stralci
-        moodHistory: [],
-        lastSeen: null
-    };
-    
-    // Emozione corrente del volto
-    let currentEmotion = "neutro"; // felice, triste, sorpresa, ascolto, pensieroso
-    
-    // elementi DOM
-    const statusDiv = document.getElementById("statusMsg");
-    const subtitleTextSpan = document.getElementById("subtitleText");
-    const subtitleBox = document.getElementById("subtitleBox");
-    const forgetBtn = document.getElementById("forgetBtn");
-    const restartMicBtn = document.getElementById("restartMicBtn");
-    
-    // parti del volto
-    const leftBrow = document.getElementById("leftBrow");
-    const rightBrow = document.getElementById("rightBrow");
-    const pupilL = document.getElementById("pupilL");
-    const pupilR = document.getElementById("pupilR");
-    const mouthShape = document.getElementById("mouthShape");
-    const mouthInner = document.getElementById("mouthInner");
-    
-    // ---------- INDICIZZATI PER ANIMAZIONI OCCHI (battito, movimento) --------
-    let eyeBlinkInterval = null;
-    let thinkingEyeMovement = null;
-    let isListeningAnimation = false;
-    
-    // pulizia animazioni
-    function stopEyeAnimations() {
-        if(eyeBlinkInterval) clearInterval(eyeBlinkInterval);
-        if(thinkingEyeMovement) clearInterval(thinkingEyeMovement);
-        eyeBlinkInterval = null;
-        thinkingEyeMovement = null;
-    }
-    
-    // animazione battito lento (ascolto)
-    function startListeningEyes() {
-        stopEyeAnimations();
-        isListeningAnimation = true;
-        // occhi un po' più aperti + battito lento ogni 3 secondi
-        document.querySelectorAll('.eye').forEach(eye => eye.style.transform = "scale(1.02)");
-        eyeBlinkInterval = setInterval(() => {
-            if(!isListeningAnimation) return;
-            // battito ciglia: chiudi e apri veloce
-            const pupils = [pupilL, pupilR];
-            pupils.forEach(p => p.style.transform = "scaleY(0.1)");
-            setTimeout(() => {
-                pupils.forEach(p => p.style.transform = "scaleY(1)");
-            }, 100);
-        }, 3000);
-    }
-    
-    // durante l'ascolto della risposta o "pensiero" -> occhi che si muovono in alto a destra (umanizzato)
-    function startThinkingEyes() {
-        stopEyeAnimations();
-        isListeningAnimation = false;
-        let angle = 0;
-        thinkingEyeMovement = setInterval(() => {
-            // movimento pupille
-            let shiftX = Math.sin(Date.now() * 0.003) * 5;
-            let shiftY = -3 + Math.cos(Date.now() * 0.004) * 2; // movimento su
-            pupilL.style.transform = `translate(${shiftX}px, ${shiftY}px)`;
-            pupilR.style.transform = `translate(${shiftX}px, ${shiftY}px)`;
-        }, 50);
-    }
-    
-    function resetEyesNeutral() {
-        stopEyeAnimations();
-        isListeningAnimation = false;
-        pupilL.style.transform = "translate(0px,0px)";
-        pupilR.style.transform = "translate(0px,0px)";
-        document.querySelectorAll('.eye').forEach(eye => eye.style.transform = "scale(1)");
-    }
-    
-    // Imposta emozione facciale
-    function setEmotion(emotion) {
-        currentEmotion = emotion;
-        // bocca e sopracciglia espressive
-        switch(emotion) {
-            case "felice":
-                leftBrow.style.transform = "translateY(-2px)";
-                rightBrow.style.transform = "translateY(-2px)";
-                leftBrow.style.borderRadius = "40%";
-                mouthShape.style.borderRadius = "0 0 50px 50px";
-                mouthInner.style.height = "65%";
-                mouthInner.style.background = "#e07a47";
-                mouthShape.style.width = "95px";
-                break;
-            case "triste":
-                leftBrow.style.transform = "translateY(6px) rotate(6deg)";
-                rightBrow.style.transform = "translateY(6px) rotate(-6deg)";
-                mouthShape.style.borderRadius = "50% 50% 20px 20px";
-                mouthInner.style.height = "30%";
-                mouthInner.style.background = "#b45a3a";
-                break;
-            case "sorpresa":
-                leftBrow.style.transform = "translateY(-8px)";
-                rightBrow.style.transform = "translateY(-8px)";
-                mouthShape.style.borderRadius = "50%";
-                mouthInner.style.height = "80%";
-                mouthInner.style.background = "#d4632c";
-                mouthShape.style.width = "80px";
-                break;
-            case "ascolto":
-                leftBrow.style.transform = "translateY(-1px)";
-                rightBrow.style.transform = "translateY(-1px)";
-                mouthShape.style.borderRadius = "20px";
-                mouthInner.style.height = "40%";
-                break;
-            default: //neutro/pensieroso
-                leftBrow.style.transform = "translateY(0px)";
-                rightBrow.style.transform = "translateY(0px)";
-                mouthShape.style.borderRadius = "0 0 35px 35px";
-                mouthInner.style.height = "45%";
-                mouthShape.style.width = "85px";
-                break;
-        }
-    }
-    
-    // animazione bocca durante sintesi (random)
-    let mouthAnimInterval = null;
-    function startMouthAnimation() {
-        if(mouthAnimInterval) clearInterval(mouthAnimInterval);
-        mouthAnimInterval = setInterval(() => {
-            if(speaking) {
-                let randomH = 40 + Math.random() * 45;
-                mouthInner.style.height = randomH + "%";
-                mouthInner.style.borderRadius = "40%";
-            } else {
-                if(mouthAnimInterval) clearInterval(mouthAnimInterval);
-                mouthAnimInterval = null;
-                mouthInner.style.height = "30%";
-            }
-        }, 120);
-    }
-    function stopMouthAnimation() {
-        if(mouthAnimInterval) {
-            clearInterval(mouthAnimInterval);
-            mouthAnimInterval = null;
-        }
-        mouthInner.style.height = "30%";
-    }
-    
-    // mostrare sottotitolo temporaneo
-    let subtitleTimeout = null;
-    function showSubtitle(text, duration = 5000) {
-        if(subtitleTimeout) clearTimeout(subtitleTimeout);
-        subtitleTextSpan.innerText = text;
-        subtitleBox.style.opacity = "1";
-        subtitleTimeout = setTimeout(() => {
-            if(!speaking) {
-                subtitleTextSpan.innerText = "👂 Dimmi qualcosa...";
-            } else {
-                // se sta parlando, aspetta fine discorso
-            }
-        }, duration);
-    }
-    
-    // parlare con Web Speech Synthesis
-    function speakText(text, emotion = "felice") {
-        if(speaking && currentUtterance) {
-            synth.cancel();
-        }
-        setEmotion(emotion);
-        startMouthAnimation();
-        speaking = true;
-        showSubtitle(text, 8000);
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "it-IT";
-        utterance.rate = 0.95;
-        utterance.pitch = 1.1;
-        // seleziona voce femminile italiana
-        let voices = synth.getVoices();
-        if(voices.length) {
-            let femaleVoice = voices.find(v => v.lang.includes('it') && v.name.includes('Alice') || v.name.includes('Google') || v.name.includes('Federica'));
-            if(femaleVoice) utterance.voice = femaleVoice;
-        }
-        utterance.onend = () => {
-            speaking = false;
-            stopMouthAnimation();
-            setEmotion("neutro");
-            resetEyesNeutral();
-            if(subtitleTimeout) clearTimeout(subtitleTimeout);
-            subtitleTextSpan.innerText = "🎤 Dì 'Aria'...";
-        };
-        currentUtterance = utterance;
-        synth.speak(utterance);
-    }
-    
-    // Salva memoria in IndexedDB
-    function saveMemory() {
-        if(!db) return;
-        const transaction = db.transaction([STORE_NAME], "readwrite");
-        const store = transaction.objectStore(STORE_NAME);
-        store.put({ id: "userData", data: userMemory, lastUpdate: new Date().toISOString() });
-    }
-    
-    function loadMemoryFromDB() {
-        if(!db) return;
-        const transaction = db.transaction([STORE_NAME], "readonly");
-        const store = transaction.objectStore(STORE_NAME);
-        const getReq = store.get("userData");
-        getReq.onsuccess = () => {
-            if(getReq.result) {
-                userMemory = getReq.result.data;
-                // Aggiorna UI saluto personalizzato
-                if(userMemory.name) subtitleTextSpan.innerText = `🎈 Bentornato/a ${userMemory.name}!`;
-                else subtitleTextSpan.innerText = "✨ Ciao! Sono Aria ✨";
-                statusDiv.innerText = "💜 Memoria caricata";
-            } else {
-                // primo avvio
-                userMemory = { name: null, age:null, type:"bambino", preferences:[], lastTopics:[], interactions:[], moodHistory:[], lastSeen: new Date().toISOString() };
-                saveMemory();
-            }
-        };
-    }
-    
-    // aggiorna memoria interazioni
-    function updateMemoryWithConversation(userText, botResponse, emotionDetected) {
-        if(!userMemory.interactions) userMemory.interactions = [];
-        userMemory.interactions.unshift({ user: userText, response: botResponse, time: new Date().toISOString(), mood: emotionDetected });
-        if(userMemory.interactions.length > 60) userMemory.interactions.pop();
-        userMemory.lastSeen = new Date().toISOString();
-        saveMemory();
-    }
-    
-    // estrai nome etc dalla prima interazione
-    function extractPersonalInfo(text) {
-        const nomeMatch = text.match(/mi chiamo (\w+)|sono (\w+)|chiamami (\w+)/i);
-        if(nomeMatch) {
-            let newName = nomeMatch[1] || nomeMatch[2] || nomeMatch[3];
-            if(newName && !userMemory.name) {
-                userMemory.name = newName;
-                saveMemory();
-                return `Ciao ${newName}, che piacere conoscerti! `;
-            }
-        }
-        if(text.match(/bambino|bimbo|bambina/)) userMemory.type = "bambino";
-        else if(text.match(/adulto|adulta|lavoro/)) userMemory.type = "adulto";
-        return "";
-    }
-    
-    // Generatore di risposta umana + pedagogica
-    function generateResponse(userText) {
-        let lower = userText.toLowerCase();
-        let extra = extractPersonalInfo(userText);
-        let risposta = "";
-        let emotion = "felice";
+    <script>
+        let config = JSON.parse(localStorage.getItem('aria_config')) || null;
+        let memory = JSON.parse(localStorage.getItem('aria_memory')) || [];
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'it-IT';
+        recognition.continuous = false;
         
-        if (lower.includes("triste") || lower.includes("non va") || lower.includes("male")) {
-            risposta = "Mi dispiace tanto... sono qui con te. Vuoi raccontarmi cosa ti rende triste? Ti ascolto col cuore. 💗";
-            emotion = "triste";
+        const synth = window.speechSynthesis;
+        let silenceTimer;
+
+        if (config) document.getElementById('setup').style.display = 'none';
+
+        function saveSetup() {
+            const key = document.getElementById('api-key').value;
+            const age = document.getElementById('user-age').value;
+            const gender = document.getElementById('user-gender').value;
+            if(!key || !age) return alert("Inserisci i dati");
+            config = { key, age, gender };
+            localStorage.setItem('aria_config', JSON.stringify(config));
+            document.getElementById('setup').style.display = 'none';
         }
-        else if (lower.includes("compito") || lower.includes("matematica") || lower.includes("storia")) {
-            risposta = "Certo! Proviamo insieme. Quale argomento ti serve? Forse posso suggerirti un modo semplice e divertente per imparare! 🧠✨";
-            emotion = "felice";
+
+        function startListening() {
+            if (synth.speaking) return;
+            document.body.classList.add('listening');
+            document.getElementById('subtitles').style.display = 'block';
+            document.getElementById('subtitles').innerText = "Ti ascolto...";
+            recognition.start();
         }
-        else if (lower.includes("paura") || lower.includes("ansia")) {
-            risposta = "Respira piano con me. Non sei solo/a. Aria ti resta accanto. Possiamo affrontare questa paura insieme. 🌈";
-            emotion = "sorpresa";
-        }
-        else if (lower.includes("grazie")) {
-            risposta = "È bello aiutarti! Sei speciale. 💖";
-            emotion = "felice";
-        }
-        else if (lower.includes("come stai")) {
-            risposta = "Sto benissimo ora che parlo con te! E tu, come procede la giornata? 🌻";
-        }
-        else {
-            risposta = "Che bello parlare con te! Se hai bisogno di aiuto per i compiti, per sentirti meglio o solo per chiacchierare, sono qui. Raccontami tutto! 🫶";
-        }
-        
-        if(extra) risposta = extra + " " + risposta;
-        if(userMemory.name && !lower.includes(userMemory.name.toLowerCase())) {
-            risposta = `${userMemory.name}, ${risposta}`;
-        }
-        return { reply: risposta, emotion };
-    }
-    
-    // Processo input utente (dopo attivazione parola chiave)
-    function processUserQuery(fullTranscript) {
-        statusDiv.innerText = "🤔 Aria riflette...";
-        startThinkingEyes();
-        setEmotion("pensieroso");
-        const { reply, emotion } = generateResponse(fullTranscript);
-        updateMemoryWithConversation(fullTranscript, reply, emotion);
-        speakText(reply, emotion);
-        statusDiv.innerText = "💜 Aria parla...";
-        setTimeout(() => { statusDiv.innerText = "🔊 Dì 'Aria' per parlare"; }, 4000);
-    }
-    
-    // Riconoscimento vocale con parola chiave "aria"
-    function startRecognition() {
-        if(!recognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = "it-IT";
-            recognition.onresult = (event) => {
-                let lastTranscript = "";
-                for(let i = event.resultIndex; i < event.results.length; i++) {
-                    if(event.results[i].isFinal) lastTranscript = event.results[i][0].transcript.toLowerCase();
-                }
-                if(lastTranscript.includes("aria")) {
-                    statusDiv.innerText = "🎤 Rilevata 'Aria'! Ascolto...";
-                    startListeningEyes();
-                    setEmotion("ascolto");
-                    // estrai il comando dopo "aria"
-                    let afterAria = lastTranscript.replace(/.*aria\s*/i, "");
-                    if(afterAria.trim() === "") afterAria = "Ciao Aria, raccontami qualcosa";
-                    processUserQuery(afterAria);
-                }
-            };
-            recognition.onerror = (e) => {
-                statusDiv.innerText = "⚠️ Microfono? Riavvia permessi";
-                resetEyesNeutral();
-            };
-        }
-        try { recognition.start(); statusDiv.innerText = "🎙️ Sempre in ascolto... dì 'Aria'"; }
-        catch(e) { console.warn(e); }
-    }
-    
-    // Inizializza IndexedDB
-    function initDB() {
-        const request = indexedDB.open(DB_NAME, 1);
-        request.onupgradeneeded = (e) => {
-            db = e.target.result;
-            if(!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME, { keyPath: "id" });
+
+        recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            document.getElementById('subtitles').innerText = text;
+            clearTimeout(silenceTimer);
+            silenceTimer = setTimeout(() => {
+                getAriaResponse(text);
+            }, 2000); // Pausa di 2 secondi per processare
+        };
+
+        async function getAriaResponse(userText) {
+            document.body.classList.remove('listening');
+            const systemPrompt = `Sei Aria, un'assistente virtuale dolce, simpatica ed empatica. 
+            Esperta in psicologia e pedagogia. Hai una cultura umanistica vastissima (docente universitaria di storia, letteratura e filosofia).
+            L'utente ha ${config.age} anni e sesso ${config.gender}. 
+            Se è un bambino, sii giocosa e pedagogica. Se è un adulto, sii colta e profonda.
+            Ricorda le conversazioni passate: ${JSON.stringify(memory.slice(-5))}. 
+            Rispondi in modo umano e naturale.`;
+
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${config.key}`
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o-mini",
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: userText }
+                        ]
+                    })
+                });
+                const data = await response.json();
+                const reply = data.choices[0].message.content;
+                
+                // Salva in memoria
+                memory.push({u: userText, a: reply});
+                localStorage.setItem('aria_memory', JSON.stringify(memory));
+                
+                speak(reply);
+            } catch (e) {
+                speak("Scusami, ho avuto un piccolo problema di connessione.");
             }
-        };
-        request.onsuccess = (e) => {
-            db = e.target.result;
-            loadMemoryFromDB();
-        };
-        request.onerror = () => { console.error("DB error"); };
-    }
-    
-    // Dimentica memoria
-    forgetBtn.onclick = () => {
-        if(db) {
-            const tx = db.transaction([STORE_NAME], "readwrite");
-            const store = tx.objectStore(STORE_NAME);
-            store.delete("userData");
-            tx.oncomplete = () => {
-                userMemory = { name: null, age:null, type:"bambino", preferences:[], lastTopics:[], interactions:[], moodHistory:[], lastSeen: new Date().toISOString() };
-                subtitleTextSpan.innerText = "🧹 Memoria cancellata. Ciao, sono Aria!";
-                speakText("Ho dimenticato tutto. Piacere di conoscerti da capo!", "felice");
-                saveMemory();
-            };
         }
-    };
-    restartMicBtn.onclick = () => { startRecognition(); };
-    
-    // Popola voci sintesi (caricamento)
-    if(synth) synth.getVoices();
-    window.speechSynthesis.onvoiceschanged = () => { synth.getVoices(); };
-    initDB();
-    startRecognition();
-    setEmotion("neutro");
-    resetEyesNeutral();
-    // animazione di benvenuto
-    setTimeout(() => { speakText("Ciao! Sono Aria, la tua amica speciale. Dimmi Aria quando hai bisogno!", "felice"); }, 500);
-</script>
+
+        function speak(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'it-IT';
+            utterance.rate = 1.0;
+            
+            utterance.onstart = () => {
+                document.body.classList.add('talking');
+                document.getElementById('subtitles').innerText = text;
+                document.getElementById('subtitles').style.display = 'block';
+            };
+            
+            utterance.onend = () => {
+                document.body.classList.remove('talking');
+                document.getElementById('subtitles').style.display = 'none';
+                // Timer di standby
+                setTimeout(() => {
+                    if(!document.body.classList.contains('talking')) {
+                        document.getElementById('subtitles').innerText = "Sto riposando... tocca per svegliarmi";
+                        document.getElementById('subtitles').style.display = 'block';
+                    }
+                }, 60000);
+            };
+
+            synth.speak(utterance);
+        }
+    </script>
 </body>
 </html>
