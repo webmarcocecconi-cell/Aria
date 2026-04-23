@@ -3,83 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aria - Assistente Virtuale</title>
+    <title>Aria - Il tuo Assistente Umanista</title>
     <style>
         :root {
-            --bg-color: #f0f4f8;
-            --aria-color: #333;
+            --bg-color: #f7f9fc;
+            --primary-text: #2c3e50;
+            --accent-blue: #00a8ff;
         }
         body, html {
             margin: 0; padding: 0; height: 100%; overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
             background-color: var(--bg-color);
-            transition: background-color 1s ease;
+            transition: background-color 1.5s ease;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
         /* Faccia di Aria */
         #face-container {
-            position: relative; width: 300px; height: 300px;
+            position: relative; width: 320px; height: 320px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer;
         }
-        .eyes-container { display: flex; gap: 60px; margin-bottom: 20px; }
+        .eyes-container { display: flex; gap: 70px; margin-bottom: 30px; }
         .eye {
-            width: 60px; height: 80px; background: white; border-radius: 50%;
-            position: relative; border: 3px solid #333; overflow: hidden;
-            transition: all 0.3s ease;
+            width: 65px; height: 85px; background: white; border-radius: 50%;
+            position: relative; border: 4px solid #333; overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .pupil {
-            width: 30px; height: 30px; background: #333; border-radius: 50%;
-            position: absolute; left: 15px; top: 25px; transition: all 0.2s ease;
+            width: 32px; height: 32px; background: #333; border-radius: 50%;
+            position: absolute; left: 16px; top: 26px; transition: all 0.3s ease;
         }
         .nose {
-            width: 15px; height: 10px; border-bottom: 3px solid #333;
-            border-radius: 50%; margin-bottom: 20px;
+            width: 20px; height: 12px; border-bottom: 3px solid #666;
+            border-radius: 40%; margin-bottom: 25px; opacity: 0.6;
         }
         .mouth {
-            width: 60px; height: 10px; border-bottom: 4px solid #333;
+            width: 70px; height: 8px; border-bottom: 4px solid #333;
             border-radius: 50%; transition: all 0.3s ease;
         }
 
-        /* Sottotitoli */
+        /* Sottotitoli stile film */
         #subtitles {
-            position: fixed; bottom: 10%; width: 80%; text-align: center;
-            font-size: 1.2rem; color: #444; min-height: 3rem;
-            padding: 10px; background: rgba(255,255,255,0.7); border-radius: 15px;
-            display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: fixed; bottom: 8%; width: 85%; text-align: center;
+            font-size: 1.3rem; color: #2c3e50; min-height: 4rem;
+            padding: 15px; background: rgba(255, 255, 255, 0.85);
+            border-radius: 20px; display: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+            backdrop-filter: blur(5px); z-index: 10;
         }
 
-        /* Setup Modal */
+        /* Form Iniziale */
         #setup {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: white; z-index: 100; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;
+            background: #ffffff; z-index: 100; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 25px; box-sizing: border-box;
         }
-        input, select, button { margin: 10px; padding: 12px; border-radius: 8px; border: 1px solid #ccc; width: 80%; max-width: 300px; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        input, select, button { margin: 12px; padding: 15px; border-radius: 12px; border: 1px solid #ddd; width: 90%; max-width: 350px; font-size: 1rem; }
+        button { background: #ff7675; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #d63031; }
 
-        /* Animazioni */
-        .blink { animation: blink 4s infinite; }
-        @keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
-        .talking .mouth { animation: talk 0.3s infinite alternate; border-radius: 20%; height: 20px; }
-        @keyframes talk { from { height: 5px; } to { height: 25px; } }
-        .listening .eye { border-color: #007bff; box-shadow: 0 0 15px rgba(0,123,255,0.5); }
+        /* Stati e Animazioni */
+        .blink { animation: blink 5s infinite; }
+        @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+        
+        .listening .eye { border-color: var(--accent-blue); transform: scale(1.05); border-width: 5px; }
+        .listening .pupil { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+
+        .talking .mouth { animation: talk 0.2s infinite alternate; border-radius: 30%; height: 25px; }
+        @keyframes talk { from { height: 8px; } to { height: 30px; } }
+
+        .sleeping .eye { transform: scaleY(0.1); opacity: 0.5; }
+        .sleeping .mouth { opacity: 0.3; }
     </style>
 </head>
 <body>
 
     <div id="setup">
-        <h2>Benvenuto, sono Aria</h2>
-        <input type="text" id="api-key" placeholder="Inserisci OpenAI API Key">
+        <h2 style="color: #ff7675;">Incontra Aria</h2>
+        <p style="color: #636e72; text-align: center;">Inserisci i tuoi dati per iniziare la nostra amicizia.</p>
+        <input type="text" id="api-key" placeholder="OpenAI API Key (sk-...)">
         <input type="number" id="user-age" placeholder="La tua età">
         <select id="user-gender">
-            <option value="M">Uomo / Bambino</option>
-            <option value="F">Donna / Bambina</option>
+            <option value="M">Maschio</option>
+            <option value="F">Femmina</option>
         </select>
-        <button onclick="saveSetup()">Inizia</button>
+        <button onclick="saveSetup()">CREA ARIA</button>
     </div>
 
-    <div id="face-container" onclick="startListening()">
+    <div id="face-container" onclick="handleInteraction()">
         <div class="eyes-container">
             <div class="eye blink" id="eye-l"><div class="pupil"></div></div>
             <div class="eye blink" id="eye-r"><div class="pupil"></div></div>
@@ -97,46 +110,61 @@
         recognition.lang = 'it-IT';
         recognition.continuous = false;
         
-        const synth = window.speechSynthesis;
-        let silenceTimer;
+        let standbyTimer;
+        let isAwake = true;
 
         if (config) document.getElementById('setup').style.display = 'none';
 
         function saveSetup() {
-            const key = document.getElementById('api-key').value;
+            const key = document.getElementById('api-key').value.trim();
             const age = document.getElementById('user-age').value;
             const gender = document.getElementById('user-gender').value;
-            if(!key || !age) return alert("Inserisci i dati");
+            if(!key || !age) return alert("Per favore, compila tutti i campi.");
             config = { key, age, gender };
             localStorage.setItem('aria_config', JSON.stringify(config));
             document.getElementById('setup').style.display = 'none';
         }
 
+        function handleInteraction() {
+            if (!isAwake) {
+                wakeUp();
+                return;
+            }
+            startListening();
+        }
+
+        function wakeUp() {
+            isAwake = true;
+            document.getElementById('face-container').classList.remove('sleeping');
+            speak("Eccomi, mi ero assopita un istante. Dimmi pure tutto.");
+        }
+
         function startListening() {
-            if (synth.speaking) return;
+            if (window.speechSynthesis.speaking) return;
             document.body.classList.add('listening');
+            document.getElementById('subtitles').innerText = "Ti ascolto con attenzione...";
             document.getElementById('subtitles').style.display = 'block';
-            document.getElementById('subtitles').innerText = "Ti ascolto...";
             recognition.start();
+            clearTimeout(standbyTimer);
         }
 
         recognition.onresult = (event) => {
             const text = event.results[0][0].transcript;
             document.getElementById('subtitles').innerText = text;
-            clearTimeout(silenceTimer);
-            silenceTimer = setTimeout(() => {
+            // Aspetta 5 secondi di silenzio totale prima di rispondere (come richiesto)
+            setTimeout(() => {
                 getAriaResponse(text);
-            }, 2000); // Pausa di 2 secondi per processare
+            }, 3000); 
         };
 
         async function getAriaResponse(userText) {
             document.body.classList.remove('listening');
-            const systemPrompt = `Sei Aria, un'assistente virtuale dolce, simpatica ed empatica. 
-            Esperta in psicologia e pedagogia. Hai una cultura umanistica vastissima (docente universitaria di storia, letteratura e filosofia).
-            L'utente ha ${config.age} anni e sesso ${config.gender}. 
-            Se è un bambino, sii giocosa e pedagogica. Se è un adulto, sii colta e profonda.
-            Ricorda le conversazioni passate: ${JSON.stringify(memory.slice(-5))}. 
-            Rispondi in modo umano e naturale.`;
+            
+            const systemPrompt = `Sei Aria, un'assistente umanizzata, dolce e simpatica.
+            PROFILO: Esperta in psicologia clinica, pedagogia moderna e docente universitaria di Letteratura, Storia e Filosofia.
+            UTENTE: Ha ${config.age} anni, sesso ${config.gender}.
+            REGOLE: Se l'utente è bambino, usa un linguaggio fiabesco e pedagogico. Se adulto, sii colta, empatica e profonda come un'amica reale. 
+            Non essere robotica. Ricorda la nostra storia: ${JSON.stringify(memory.slice(-10))}.`;
 
             try {
                 const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -147,49 +175,72 @@
                     },
                     body: JSON.stringify({
                         model: "gpt-4o-mini",
-                        messages: [
-                            { role: "system", content: systemPrompt },
-                            { role: "user", content: userText }
-                        ]
+                        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userText }]
                     })
                 });
+
                 const data = await response.json();
+                if (data.error) throw new Error(data.error.message);
                 const reply = data.choices[0].message.content;
                 
-                // Salva in memoria
                 memory.push({u: userText, a: reply});
                 localStorage.setItem('aria_memory', JSON.stringify(memory));
                 
-                speak(reply);
+                generateVoice(reply);
             } catch (e) {
-                speak("Scusami, ho avuto un piccolo problema di connessione.");
+                console.error(e);
+                document.getElementById('subtitles').innerText = "C'è un piccolo intoppo tecnico, riprova tra un attimo.";
             }
         }
 
-        function speak(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'it-IT';
-            utterance.rate = 1.0;
-            
-            utterance.onstart = () => {
-                document.body.classList.add('talking');
-                document.getElementById('subtitles').innerText = text;
-                document.getElementById('subtitles').style.display = 'block';
-            };
-            
-            utterance.onend = () => {
-                document.body.classList.remove('talking');
-                document.getElementById('subtitles').style.display = 'none';
-                // Timer di standby
-                setTimeout(() => {
-                    if(!document.body.classList.contains('talking')) {
-                        document.getElementById('subtitles').innerText = "Sto riposando... tocca per svegliarmi";
-                        document.getElementById('subtitles').style.display = 'block';
-                    }
-                }, 60000);
-            };
+        async function generateVoice(text) {
+            document.getElementById('subtitles').innerText = text;
+            document.getElementById('subtitles').style.display = 'block';
 
-            synth.speak(utterance);
+            try {
+                const res = await fetch('https://api.openai.com/v1/audio/speech', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${config.key}`
+                    },
+                    body: JSON.stringify({ model: "tts-1", voice: "nova", input: text })
+                });
+
+                const blob = await res.blob();
+                const audio = new Audio(URL.createObjectURL(blob));
+                
+                audio.onplay = () => {
+                    document.body.classList.add('talking');
+                    // Cambia colore sfondo in base al "mood" (simulato)
+                    document.body.style.backgroundColor = "#fff0f3"; 
+                };
+
+                audio.onended = () => {
+                    document.body.classList.remove('talking');
+                    document.body.style.backgroundColor = "var(--bg-color)";
+                    setTimeout(() => { 
+                        document.getElementById('subtitles').style.display = 'none';
+                        startStandbyTimer();
+                    }, 1000);
+                };
+
+                audio.play();
+            } catch (err) {
+                // Fallback se TTS fallisce
+                const u = new SpeechSynthesisUtterance(text);
+                u.lang = 'it-IT';
+                window.speechSynthesis.speak(u);
+            }
+        }
+
+        function startStandbyTimer() {
+            standbyTimer = setTimeout(() => {
+                isAwake = false;
+                document.getElementById('face-container').classList.add('sleeping');
+                document.getElementById('subtitles').innerText = "Sto dormendo... tocca il mio viso per svegliarmi.";
+                document.getElementById('subtitles').style.display = 'block';
+            }, 60000);
         }
     </script>
 </body>
