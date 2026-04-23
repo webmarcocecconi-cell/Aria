@@ -1313,9 +1313,7 @@ function removeTyping() {
 }
 
 function setStatus(msg, cls) {
-  var s = document.getElementById('statusText');
-  s.textContent = msg;
-  s.className = 'status-text' + (cls ? ' ' + cls : '');
+  // no-op — sostituito da updateStateLabel
 }
 
 // ═══════════════════════════════════════════════════
@@ -1381,22 +1379,27 @@ async function askAria(userMsg) {
   }
 }
 
-// Fetch pura del TTS — restituisce wavBuffer
+// Fetch pura del TTS — restituisce wavBuffer, retry su 429
 async function fetchTTS(text) {
   var voiceName = selectedGeminiVoice || 'Kore';
-  var response = await fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + API_KEY,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: text }] }],
-        generationConfig: { response_modalities: ['AUDIO'],
-          speech_config: { voice_config: { prebuilt_voice_config: { voice_name: voiceName } } } }
-      }) }
-  );
-  var data = await response.json();
-  if (data.error) throw new Error(data.error.message);
-  var b64 = data.candidates[0].content.parts[0].inlineData.data;
-  return pcmToWav(base64ToArrayBuffer(b64), 24000, 1, 16);
+  var body = JSON.stringify({
+    contents: [{ parts: [{ text: text }] }],
+    generationConfig: { response_modalities: ['AUDIO'],
+      speech_config: { voice_config: { prebuilt_voice_config: { voice_name: voiceName } } } }
+  });
+  for (var attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise(function(r) { setTimeout(r, 2000 * attempt); });
+    var response = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + API_KEY,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }
+    );
+    var data = await response.json();
+    if (data.error && data.error.code === 429) continue; // retry
+    if (data.error) throw new Error(data.error.message);
+    var b64 = data.candidates[0].content.parts[0].inlineData.data;
+    return pcmToWav(base64ToArrayBuffer(b64), 24000, 1, 16);
+  }
+  throw new Error('TTS 429 dopo 3 tentativi');
 }
 
 // Riproduce un wavBuffer e chiama goIdleAfterSpeaking quando finisce
