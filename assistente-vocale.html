@@ -1678,7 +1678,11 @@ function startListeningAttempt() {
 
   commandRecognition.onresult = function(e) {
     var t = e.results[0][0].transcript.trim();
-    if (t) { stopListening(); goThinking(t); }
+    if (t) {
+      clearTimeout(silenceTimer);
+      stopListening();
+      goThinking(t);
+    }
   };
   commandRecognition.onerror = function(err) {
     if (err.error === 'not-allowed' || err.error === 'network') {
@@ -1687,10 +1691,9 @@ function startListeningAttempt() {
     // altri errori: riprova automaticamente
   };
   commandRecognition.onend = function() {
-    if (VOICE_STATE !== 'listening') return;
-    // Riavvia automaticamente — Android ferma dopo ~5s di silenzio
+    if (VOICE_STATE !== 'listening' && VOICE_STATE !== 'countdown') return;
     listenAttempts++;
-    if (listenAttempts < 20) { // max ~100s totali
+    if (listenAttempts < 20) {
       setTimeout(startListeningAttempt, 200);
     } else {
       stopListening();
@@ -1769,12 +1772,23 @@ function goThinking(transcript) {
 function goIdleAfterSpeaking() {
   if (VOICE_STATE !== 'speaking') return;
   if (conversationHistory.length > 0) {
-    startCountdown();
+    setState('listening');
+    listenAttempts = 0;
+    updateMicBtn();
+    setEmotion('ascoltando');
+    startListeningAttempt();
+    // Dopo 20s di silenzio totale → countdown
+    clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(function() {
+      if (VOICE_STATE === 'listening') startCountdown();
+    }, 20000);
   } else {
     setState('idle');
     updateMicBtn();
   }
 }
+
+var silenceTimer = null;
 
 // ─── COUNTDOWN 10s → sleeping ───
 function startCountdown() {
@@ -1789,19 +1803,19 @@ function startCountdown() {
 
   function updateArc() {
     var pct = countdownSec / 10;
-    var circumference = 163.4;
-    if (arc) arc.setAttribute('stroke-dashoffset', circumference * (1 - pct));
+    if (arc) arc.setAttribute('stroke-dashoffset', 163.4 * (1 - pct));
     if (num) num.textContent = countdownSec;
     var t = document.getElementById('stateLabelText');
     if (t) t.textContent = '⏱ ' + countdownSec + 's — ancora qui?';
   }
   updateArc();
-  startListeningDuringCountdown();
+
   countdownInterval = setInterval(function() {
     countdownSec--;
     updateArc();
     if (countdownSec <= 0) { stopCountdown(); sayGoodbye(); }
   }, 1000);
+  // listener già attivo da goIdleAfterSpeaking
 }
 
 function stopCountdown() {
@@ -1809,26 +1823,6 @@ function stopCountdown() {
   countdownInterval = null; countdownTimer = null;
   var ring = document.getElementById('countdownRing');
   if (ring) ring.style.display = 'none';
-  stopListening();
-}
-
-function startListeningDuringCountdown() {
-  if (VOICE_STATE !== 'countdown') return;
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return;
-  commandRecognition = new SR();
-  commandRecognition.continuous = false;
-  commandRecognition.interimResults = false;
-  commandRecognition.lang = 'it-IT';
-  commandRecognition.onresult = function(e) {
-    var t = e.results[0][0].transcript.trim();
-    if (t) { stopCountdown(); goThinking(t); }
-  };
-  commandRecognition.onerror = function() {};
-  commandRecognition.onend = function() {
-    if (VOICE_STATE === 'countdown') setTimeout(startListeningDuringCountdown, 200);
-  };
-  try { commandRecognition.start(); } catch(e) { setTimeout(startListeningDuringCountdown, 300); }
 }
 
 // ─── SLEEPING ───
