@@ -1759,10 +1759,16 @@ function startListening() {
       clearTimeout(speechTimer);
       clearTimeout(silenceTimer);
 
-      var interim = '';
       for (var i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
-        else interim += e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          accumulated += e.results[i][0].transcript + ' ';
+        }
+      }
+
+      // Mostra testo accumulato + eventuale interim corrente
+      var interim = '';
+      for (var j = e.resultIndex; j < e.results.length; j++) {
+        if (!e.results[j].isFinal) interim += e.results[j][0].transcript;
       }
       var display = (accumulated + interim).trim();
       if (display) showSubtitle('user', display);
@@ -1770,7 +1776,7 @@ function startListening() {
       // 10s di silenzio dopo l'ultima parola → invia
       speechTimer = setTimeout(function() {
         if (!isValid()) return;
-        var toSend = accumulated.trim() || interim.trim();
+        var toSend = accumulated.trim();
         if (toSend) sendText(toSend);
       }, 10000);
     };
