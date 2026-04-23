@@ -1350,12 +1350,6 @@ async function askAria(userMsg) {
     if (PROVIDER === 'gemini' && API_KEY && audioCtx) {
       var ttsPromise = fetchTTS(cleanText).catch(function() { return null; });
 
-      // Frase di attesa mentre il TTS scarica
-      var thinkingFrasi = ['Dammi un attimo...', 'Un secondo...', 'Ci penso...', 'Vediamo...', 'Mmh, ecco...'];
-      var thinkingFrase = thinkingFrasi[Math.floor(Math.random() * thinkingFrasi.length)];
-      showSubtitle('aria', thinkingFrase);
-      playShortTTS(thinkingFrase, function() {});
-
       goSpeaking();
       setStatus('ARIA sta parlando...', 'speaking');
       document.getElementById('btnStop').style.display = 'flex';
@@ -1657,16 +1651,23 @@ function toggleMic() {
 var listenAttempts = 0;
 
 function startListening() {
+  clearTimeout(silenceTimer);
+  var banner = document.getElementById('wakeBanner');
+  if (banner) banner.classList.remove('visible');
   setState('listening');
   listenAttempts = 0;
   updateMicBtn();
   setEmotion('ascoltando');
-  setStatus('Parla...', 'active');
   startListeningAttempt();
+  console.log('[ARIA] startListening — silenceTimer 20s start');
+  silenceTimer = setTimeout(function() {
+    console.log('[ARIA] silenceTimer scattato — VOICE_STATE=' + VOICE_STATE);
+    if (VOICE_STATE === 'listening') startCountdown();
+  }, 20000);
 }
 
 function startListeningAttempt() {
-  if (VOICE_STATE !== 'listening') return;
+  if (VOICE_STATE !== 'listening' && VOICE_STATE !== 'countdown') return;
 
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { startMediaRecorderFallback(); return; }
@@ -1772,16 +1773,7 @@ function goThinking(transcript) {
 function goIdleAfterSpeaking() {
   if (VOICE_STATE !== 'speaking') return;
   if (conversationHistory.length > 0) {
-    setState('listening');
-    listenAttempts = 0;
-    updateMicBtn();
-    setEmotion('ascoltando');
-    startListeningAttempt();
-    // Dopo 20s di silenzio totale → countdown
-    clearTimeout(silenceTimer);
-    silenceTimer = setTimeout(function() {
-      if (VOICE_STATE === 'listening') startCountdown();
-    }, 20000);
+    startListening();
   } else {
     setState('idle');
     updateMicBtn();
