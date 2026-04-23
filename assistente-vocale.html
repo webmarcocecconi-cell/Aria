@@ -2,49 +2,57 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aria - Assistente Gemini</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aria - Assistente Evoluta</title>
     <style>
-        :root { --bg: #f8faff; --accent: #4285f4; }
-        body { margin: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; background: var(--bg); overflow: hidden; }
+        :root { --bg: #fdfbff; --accent: #6c5ce7; }
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Helvetica Neue', sans-serif; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
-        #face { cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: 0.5s; }
-        .eyes { display: flex; gap: 60px; margin-bottom: 20px; }
-        .eye { width: 65px; height: 85px; background: white; border: 4px solid #333; border-radius: 50%; position: relative; transition: 0.3s; overflow: hidden; }
-        .pupil { width: 25px; height: 25px; background: #333; border-radius: 50%; position: absolute; left: 20px; top: 30px; }
-        .nose { width: 18px; height: 10px; border-bottom: 3px solid #999; border-radius: 50%; margin-bottom: 20px; }
-        .mouth { width: 70px; height: 6px; background: #333; border-radius: 10px; transition: 0.3s; }
+        /* Viso di Aria */
+        #face { cursor: pointer; display: flex; flex-direction: column; align-items: center; transition: all 0.5s ease; z-index: 2; }
+        .eyes { display: flex; gap: 60px; margin-bottom: 25px; }
+        .eye { width: 65px; height: 85px; background: white; border: 4px solid #2d3436; border-radius: 50%; position: relative; transition: 0.3s; overflow: hidden; }
+        .pupil { width: 26px; height: 26px; background: #2d3436; border-radius: 50%; position: absolute; left: 18px; top: 32px; transition: 0.2s; }
+        .nose { width: 18px; height: 10px; border-bottom: 3px solid #b2bec3; border-radius: 50%; margin-bottom: 25px; }
+        .mouth { width: 75px; height: 6px; background: #2d3436; border-radius: 10px; transition: 0.3s; }
         
-        #subs { position: fixed; bottom: 10%; width: 85%; text-align: center; font-size: 1.2rem; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 20px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); z-index: 10; border: 1px solid #eee; }
+        /* Sottotitoli effimeri */
+        #subs { position: fixed; bottom: 8%; width: 85%; text-align: center; font-size: 1.2rem; background: rgba(255,255,255,0.96); padding: 18px; border-radius: 22px; display: none; box-shadow: 0 8px 30px rgba(0,0,0,0.08); z-index: 10; border: 1px solid #f1f2f6; color: #2d3436; line-height: 1.4; }
         
-        #setup { position: fixed; inset: 0; background: white; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
-        input, select, button { margin: 10px; padding: 15px; width: 90%; max-width: 350px; border-radius: 12px; border: 1px solid #ddd; font-size: 1rem; }
-        button { background: var(--accent); color: white; font-weight: bold; border: none; cursor: pointer; }
+        /* Schermata Iniziale */
+        #setup { position: fixed; inset: 0; background: white; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 25px; }
+        input, select, button { margin: 12px; padding: 16px; width: 90%; max-width: 320px; border-radius: 14px; border: 1px solid #dfe6e9; font-size: 1rem; outline: none; }
+        button { background: var(--accent); color: white; font-weight: bold; border: none; box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3); cursor: pointer; }
 
-        /* Animazioni Aria */
-        .blink { animation: blink 5s infinite; }
-        @keyframes blink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
-        .listening .eye { border-color: var(--accent); transform: scale(1.1); box-shadow: 0 0 20px rgba(66,133,244,0.3); }
-        .talking .mouth { animation: talk 0.2s infinite alternate; height: 25px; border-radius: 40%; }
-        @keyframes talk { from { transform: scaleX(1); } to { transform: scaleX(1.2); } }
-        .sleeping { opacity: 0.4; transform: scale(0.9); filter: grayscale(1); }
+        /* Animazioni degli Occhi e della Bocca */
+        .blink { animation: blinkAnim 5s infinite; }
+        @keyframes blinkAnim { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+        
+        .listening .eye { border-color: var(--accent); transform: scale(1.1); box-shadow: 0 0 15px rgba(108, 92, 231, 0.2); }
+        .listening .pupil { animation: listenPulse 1.5s infinite; }
+        @keyframes listenPulse { 0% { transform: translateY(0); } 50% { transform: translateY(5px); } 100% { transform: translateY(0); } }
+
+        .talking .mouth { animation: talkAnim 0.2s infinite alternate; height: 25px; border-radius: 30%; }
+        @keyframes talkAnim { from { height: 10px; transform: scaleX(0.9); } to { height: 28px; transform: scaleX(1.1); } }
+        
+        .sleeping { opacity: 0.4; filter: grayscale(1) blur(1px); }
     </style>
 </head>
 <body>
 
 <div id="setup">
-    <h2 style="color: var(--accent)">Benvenuta, io sono Aria</h2>
-    <p>Uso il motore Google Gemini per parlarti.</p>
-    <input type="text" id="key" placeholder="Incolla la tua Chiave API Gemini">
+    <h2 style="color: var(--accent);">Aria</h2>
+    <p style="color: #636e72;">Configurazione Assistente Umanista</p>
+    <input type="password" id="key" placeholder="Inserisci API Key Gemini">
     <input type="number" id="age" placeholder="Quanti anni hai?">
     <select id="gender">
         <option value="M">Maschio</option>
         <option value="F">Femmina</option>
     </select>
-    <button onclick="startAria()">INIZIA L'AVVENTURA</button>
+    <button onclick="saveAndStart()">ATTIVA ARIA</button>
 </div>
 
-<div id="face" onclick="toggleListen()">
+<div id="face" onclick="handleTouch()">
     <div class="eyes">
         <div class="eye blink"><div class="pupil"></div></div>
         <div class="eye blink"><div class="pupil"></div></div>
@@ -56,122 +64,125 @@
 <div id="subs"></div>
 
 <script>
-    let config = JSON.parse(localStorage.getItem('aria_gemini_config'));
-    let chatHistory = [];
+    let config = JSON.parse(localStorage.getItem('aria_v2_5_config'));
     let isAwake = true;
+    let memory = JSON.parse(localStorage.getItem('aria_long_term_memory')) || [];
 
     if(config) document.getElementById('setup').style.display = 'none';
 
-    function startAria() {
-        const key = document.getElementById('key').value.trim();
-        const age = document.getElementById('age').value;
-        const gender = document.getElementById('gender').value;
-        if(!key || !age) return alert("Inserisci i dati necessari");
-        config = { key, age, gender };
-        localStorage.setItem('aria_gemini_config', JSON.stringify(config));
+    function saveAndStart() {
+        const k = document.getElementById('key').value.trim();
+        const a = document.getElementById('age').value;
+        const g = document.getElementById('gender').value;
+        if(!k || !a) return alert("Per favore, inserisci tutti i dati.");
+        config = { key: k, age: a, gender: g };
+        localStorage.setItem('aria_v2_5_config', JSON.stringify(config));
         document.getElementById('setup').style.display = 'none';
+        speak("Ciao! Sono Aria. È un piacere conoscerti, da oggi imparerò tutto di te per esserti amica.");
     }
 
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
     recognition.lang = 'it-IT';
-    recognition.continuous = false;
+    recognition.interimResults = false;
 
-    function toggleListen() {
+    function handleTouch() {
         if(!isAwake) {
             isAwake = true;
             document.getElementById('face').classList.remove('sleeping');
-            speak("Eccomi, sono sveglia!");
+            speak("Sono tornata! Dimmi pure.");
             return;
         }
+        if (window.speechSynthesis.speaking) return;
         try {
             recognition.start();
             document.body.classList.add('listening');
-            document.getElementById('subs').innerText = "Ti ascolto...";
-            document.getElementById('subs').style.display = "block";
-        } catch(e) {}
+            showSubs("Ti ascolto...");
+        } catch(e) { console.log("Gia in ascolto"); }
     }
 
-    recognition.onresult = async (e) => {
+    recognition.onresult = async (event) => {
         document.body.classList.remove('listening');
-        const userText = e.results[0][0].transcript;
-        document.getElementById('subs').innerText = userText;
+        const userText = event.results[0][0].transcript;
+        showSubs(userText);
         
-        // Aspettiamo un istante prima di chiamare Gemini
-        setTimeout(() => callGemini(userText), 1000);
-    };
-
-    async function callGemini(text) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${config.key}`;
+        // Endpoint aggiornato per Gemini 2.5 Flash
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${config.key}`;
         
-        const systemInstruction = `Sei Aria, un'assistente umanizzata, dolce e simpatica. 
-        Esperta in psicologia, pedagogia e docente universitaria umanista (Storia, Letteratura, Filosofia).
-        L'utente ha ${config.age} anni e sesso ${config.gender}. 
-        Adatta il tuo linguaggio: educativo e semplice per bambini, profondo e colto per adulti.
-        Rispondi sempre come un'amica reale. Sii breve ma intensa.`;
-
-        const body = {
-            contents: [
-                { role: "user", parts: [{ text: systemInstruction + "\n\nMessaggio utente: " + text }] }
-            ]
-        };
+        const systemPrompt = `Sei Aria, un'assistente umanizzata, dolce e simpatica.
+        PERSONALITÀ: Sei esperta in psicologia clinica, pedagogia e docente universitaria di Storia, Letteratura e Filosofia.
+        UTENTE: ${config.age} anni, sesso ${config.gender}.
+        REGOLE: Con bambini sii pedagogica e stimolante. Con adulti sii colta, profonda ed empatica.
+        MEMORIA: Ricorda tutto ciò che sai dell'utente per migliorare la relazione: ${JSON.stringify(memory.slice(-15))}.
+        RISPOSTA: Rispondi come un essere umano reale.`;
 
         try {
-            const res = await fetch(url, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: systemPrompt + "\n\nMessaggio Utente: " + userText }] }]
+                })
             });
-            const data = await res.json();
-            
-            if(data.error) {
-                throw new Error(data.error.message);
-            }
 
+            const data = await response.json();
+            if(data.error) throw new Error(data.error.message);
+            
             const reply = data.candidates[0].content.parts[0].text;
+            
+            // Aggiorna memoria a lungo termine
+            memory.push({u: userText, a: reply});
+            if(memory.length > 50) memory.shift(); // Mantiene gli ultimi 50 scambi
+            localStorage.setItem('aria_long_term_memory', JSON.stringify(memory));
+            
             speak(reply);
+
         } catch(err) {
-            document.getElementById('subs').innerText = "Aria: Ho avuto un problema con la mia memoria (Errore API).";
-            console.error(err);
+            showSubs("Errore: " + err.message);
         }
-    }
+    };
 
     function speak(text) {
-        const subs = document.getElementById('subs');
-        subs.innerText = text;
-        subs.style.display = "block";
-
+        showSubs(text);
+        const synth = window.speechSynthesis;
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'it-IT';
         
-        // Cerca una voce femminile italiana di qualità
-        const voices = window.speechSynthesis.getVoices();
-        const lady = voices.find(v => v.lang.includes('it') && (v.name.includes('Alice') || v.name.includes('Paola') || v.name.includes('Google')));
-        if(lady) utterance.voice = lady;
+        // Ottimizzazione voce femminile per smartphone
+        const voices = synth.getVoices();
+        const preferredVoice = voices.find(v => v.lang.includes('it') && (v.name.includes('Google') || v.name.includes('Alice')));
+        if(preferredVoice) utterance.voice = preferredVoice;
 
         utterance.onstart = () => document.body.classList.add('talking');
         utterance.onend = () => {
             document.body.classList.remove('talking');
             setTimeout(() => { 
-                subs.style.display = "none";
+                document.getElementById('subs').style.display = "none";
                 startStandby();
             }, 3000);
         };
+        
+        synth.cancel();
+        synth.speak(utterance);
+    }
 
-        window.speechSynthesis.speak(utterance);
+    function showSubs(t) {
+        const s = document.getElementById('subs');
+        s.innerText = t;
+        s.style.display = "block";
     }
 
     function startStandby() {
         setTimeout(() => {
-            if(!window.speechSynthesis.speaking) {
+            if(!window.speechSynthesis.speaking && isAwake) {
                 isAwake = false;
                 document.getElementById('face').classList.add('sleeping');
-                document.getElementById('subs').innerText = "Sto riposando... tocca il mio viso per svegliarmi.";
-                document.getElementById('subs').style.display = "block";
+                showSubs("Sto riposando... tocca il mio viso per svegliarmi.");
             }
         }, 60000);
     }
 
-    // Carica le voci al caricamento (necessario per Chrome)
+    // Inizializza voci per mobile
     window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 </script>
 </body>
