@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ARIA — Assistente Vocale</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f1a;
+    --surface: #161829;
+    --card: #1e2035;
+    --accent: #7c6dfa;
+    --accent2: #f472b6;
+    --accent3: #34d399;
+    --text: #e8eaf6;
+    --muted: #6b7280;
+    --eye-white: #f0f4ff;
+    --eye-iris: #7c6dfa;
+    --eye-pupil: #0d0f1a;
+    --border: rgba(124,109,250,0.2);
+    /* Colori stati */
+    --state-listening: #34d399;
+    --state-thinking:  #fbbf24;
+    --state-speaking:  #f472b6;
+    --state-countdown: #7c6dfa;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  /* ─── SFONDO ANIMATO ─── */
+  .bg-aura {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 20%, rgba(124,109,250,0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 40% at 80% 80%, rgba(244,114,182,0.10) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 60% at 50% 50%, rgba(52,211,153,0.05) 0%, transparent 70%);
+    animation: aura 8s ease-in-out infinite alternate;
+  }
+  @keyframes aura {
+    0%   { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(30deg); }
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    position: relative; z-index: 2;
+    text-align: center;
+    padding: 28px 20px 10px;
+  }
+  header .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: 4px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  header .tagline {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* ─── FACCIA PRINCIPALE ─── */
+  .face-container {
+    position: relative; z-index: 2;
+    margin: 20px auto;
+    width: 220px; height: 220px;
+    background: var(--card);
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    box-shadow:
+      0 0 40px rgba(124,109,250,0.15),
+      0 0 80px rgba(124,109,250,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 42px;
+    gap: 28px;
+    transition: box-shadow 0.4s ease;
+  }
+  .face-container.thinking {
+    box-shadow: 0 0 50px rgba(251,191,36,0.35), 0 0 100px rgba(251,191,36,0.15);
+    border-color: rgba(251,191,36,0.5);
+  }
+  .face-container.speaking {
+    box-shadow: 0 0 50px rgba(244,114,182,0.45), 0 0 100px rgba(244,114,182,0.2);
+    border-color: rgba(244,114,182,0.6);
+    animation: pulse-face 0.6s ease-in-out infinite alternate;
+  }
+  .face-container.happy {
+    box-shadow: 0 0 40px rgba(124,109,250,0.35), 0 0 80px rgba(124,109,250,0.18);
+  }
+  /* Stato listening — bordo e glow verde forte */
+  .face-container.listening-active {
+    box-shadow: 0 0 50px rgba(52,211,153,0.5), 0 0 100px rgba(52,211,153,0.2);
+    border-color: rgba(52,211,153,0.7);
+  }
+  @keyframes pulse-face {
+    from { transform: scale(1); }
+    to   { transform: scale(1.025); }
+  }
+
+  /* ─── OCCHI ─── */
+  .eye {
+    width: 60px; height: 72px;
+    background: var(--eye-white);
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+    transition: border-radius 0.3s ease, transform 0.3s ease;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.8);
+  }
+
+  /* Iris */
+  .iris {
+    position: absolute;
+    width: 38px; height: 38px;
+    background: radial-gradient(circle at 35% 35%, #a78bfa, var(--eye-iris) 50%, #4c1d95);
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    transition: transform 0.15s ease;
+  }
+  /* Pupilla */
+  .pupil {
+    position: absolute;
+    width: 18px; height: 18px;
+    background: var(--eye-pupil);
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.2s, height 0.2s;
+  }
+  /* Riflesso */
+  .reflection {
+    position: absolute;
+    width: 8px; height: 8px;
+    background: rgba(255,255,255,0.85);
+    border-radius: 50%;
+    top: 28%; left: 30%;
+    pointer-events: none;
+  }
+
+  /* Emozioni occhi */
+  .face-container.happy .eye       { border-radius: 50% 50% 60% 60%; transform: scaleY(0.82); }
+  .face-container.thinking .eye    { border-radius: 50%; }
+  .face-container.thinking .eye.left  { transform: rotate(-12deg); }
+  .face-container.thinking .eye.right { transform: rotate(12deg); }
+  .face-container.surprised .eye   { width: 68px; height: 80px; }
+  .face-container.surprised .pupil { width: 22px; height: 22px; }
+  .face-container.empathic .eye    { border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%; }
+  .face-container.listening .eye   { border-radius: 50%; animation: blink-iris 2s ease-in-out infinite; }
+  .face-container.sleeping .eye    {
+    height: 8px !important;
+    border-radius: 4px;
+    transition: height 0.6s ease, border-radius 0.6s ease;
+  }
+  .face-container.sleeping .iris   { opacity: 0; }
+  .face-container.sleeping .reflection { opacity: 0; }
+  .face-container.sleeping {
+    box-shadow: 0 0 30px rgba(124,109,250,0.08), 0 0 60px rgba(124,109,250,0.04);
+    border-color: rgba(124,109,250,0.1);
+    animation: sleeping-breathe 4s ease-in-out infinite;
+  }
+  @keyframes sleeping-breathe {
+    0%,100% { transform: scale(1); }
+    50%      { transform: scale(1.012); }
+  }
+
+  /* ─── BANNER SVEGLIAMI ─── */
+  .wake-banner {
+    position: fixed;
+    bottom: 90px;
+    left: 0; right: 0;
+    z-index: 15;
+    display: flex;
+    justify-content: center;
+    padding: 0 20px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s, transform 0.5s;
+    pointer-events: none;
+  }
+  .wake-banner.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .wake-btn {
+    background: rgba(10,11,20,0.85);
+    backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(124,109,250,0.4);
+    border-radius: 50px;
+    padding: 12px 28px;
+    color: #c4b5fd;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: wake-pulse 2.5s ease-in-out infinite;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .wake-btn:hover {
+    background: rgba(124,109,250,0.15);
+    border-color: rgba(124,109,250,0.8);
+  }
+  .wake-btn:active { transform: scale(0.97); }
+  .wake-icon {
+    font-size: 1rem;
+    animation: wake-icon-pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes wake-pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(124,109,250,0); }
+    50%      { box-shadow: 0 0 20px 4px rgba(124,109,250,0.25); }
+  }
+  @keyframes wake-icon-pulse {
+    0%,100% { transform: scale(1); }
+    50%      { transform: scale(1.2); }
+  }
+
+  @keyframes blink-iris {
+    0%, 90%, 100% { transform: scaleY(1); }
+    95% { transform: scaleY(0.05); }
+  }
+
+  /* Blink periodico */
+  .eye { animation: blink 5s ease-in-out infinite; }
+  .eye.right { animation-delay: 0.07s; }
+  @keyframes blink {
+    0%, 92%, 100% { transform: scaleY(1); }
+    96% { transform: scaleY(0.05); }
+  }
+
+  /* ─── NASO ─── */
+  .nose {
+    position: absolute;
+    top: 128px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    transition: all 0.4s ease;
+  }
+  .nostril {
+    width: 8px; height: 6px;
+    background: rgba(124,109,250,0.45);
+    border-radius: 50%;
+    transition: all 0.4s ease;
+  }
+
+  /* Naso per emozione */
+  .face-container.happy .nostril       { width: 9px; height: 7px; background: rgba(124,109,250,0.6); }
+  .face-container.surprised .nostril   { width: 11px; height: 9px; background: rgba(124,109,250,0.7); }
+  .face-container.thinking .nose       { transform: translateX(calc(-50% + 5px)); }
+  .face-container.empathic .nostril    { background: rgba(244,114,182,0.5); }
+  .face-container.speaking .nostril    { animation: nostril-breathe 0.5s ease-in-out infinite alternate; }
+  @keyframes nostril-breathe {
+    from { width: 8px; height: 6px; }
+    to   { width: 11px; height: 9px; }
+  }
+
+  /* ─── BOCCA ─── */
+  .mouth-wrap {
+    position: absolute;
+    top: 155px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90px;
+    height: 44px;
+    transition: all 0.4s ease;
+  }
+  .mouth-svg {
+    width: 100%; height: 100%;
+    overflow: visible;
+    transition: all 0.4s ease;
+  }
+  .status-area {
+    position: relative; z-index: 2;
+    text-align: center;
+    height: 26px;
+    margin-bottom: 12px;
+  }
+  .status-text {
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: color 0.3s;
+  }
+  .status-text.active { color: var(--accent); }
+  .status-text.speaking { color: var(--accent2); }
+  .status-text.thinking { color: var(--accent3); }
+
+  /* ─── CHAT AREA ─── */
+  .bubble {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    animation: fadeUp 0.3s ease;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .bubble.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.aria {
+    align-self: flex-start;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.aria .bubble-name {
+    font-size: 0.65rem;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .typing-dots {
+    display: flex; gap: 5px; align-items: center;
+    padding: 4px 0;
+  }
+  .typing-dots span {
+    width: 7px; height: 7px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: dot-bounce 1.2s ease-in-out infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+    40% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* ─── INPUT AREA ─── */
+  .input-area {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 20;
+    padding: 10px 16px 24px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .text-input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 12px 18px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.9rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .text-input::placeholder { color: var(--muted); }
+  .text-input:focus { border-color: var(--accent); }
+
+  .btn {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    transition: transform 0.15s, box-shadow 0.15s;
+    flex-shrink: 0;
+  }
+  .btn:active { transform: scale(0.9); }
+
+  .btn-mic {
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    color: white;
+    box-shadow: 0 4px 15px rgba(124,109,250,0.4);
+  }
+  .btn-mic.recording {
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    box-shadow: 0 4px 15px rgba(239,68,68,0.5);
+    animation: mic-pulse 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes mic-pulse {
+    from { box-shadow: 0 4px 15px rgba(239,68,68,0.4); }
+    to   { box-shadow: 0 4px 30px rgba(239,68,68,0.8); }
+  }
+  .btn-send {
+    background: linear-gradient(135deg, var(--accent2), #fb7185);
+    color: white;
+    box-shadow: 0 4px 15px rgba(244,114,182,0.4);
+  }
+  .btn-stop {
+    background: linear-gradient(135deg, #374151, #4b5563);
+    color: white;
+    display: none;
+  }
+  .btn-wake {
+    background: linear-gradient(135deg, #374151, #4b5563);
+    color: white;
+    font-size: 1rem;
+    transition: background 0.3s, box-shadow 0.3s, transform 0.15s;
+  }
+
+  /* ─── COUNTDOWN RING ─── */
+  .countdown-ring {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .countdown-ring svg { position: absolute; }
+  .countdown-ring span {
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    position: relative; z-index: 1;
+  }
+
+  /* ─── LANG BADGE ─── */
+  .lang-badge {
+    position: relative; z-index: 2;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  .lang-badge span {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .lang-badge span:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ─── LAYOUT PRINCIPALE ─── */
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  .face-col {
+    position: relative; z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  /* ─── SOTTOTITOLO ─── */
+  .subtitle-area {
+    position: fixed;
+    bottom: 90px;
+    left: 0; right: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    padding: 0 20px;
+    pointer-events: none;
+  }
+  .subtitle-box {
+    background: rgba(10,11,20,0.82);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 12px 20px;
+    max-width: 420px;
+    width: 100%;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--text);
+    text-align: center;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .subtitle-box.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .subtitle-box.user-sub {
+    color: #c4b5fd;
+    font-style: italic;
+    font-size: 0.88rem;
+  }
+  .subtitle-box .sub-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  /* ─── INDICATORE ASCOLTO ─── */
+  .listen-ring {
+    position: absolute;
+    inset: -10px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s, border-color 0.3s, box-shadow 0.3s;
+  }
+  /* LISTENING — verde pulsante */
+  .face-container.listening-active .listen-ring {
+    opacity: 1;
+    border-color: var(--state-listening);
+    box-shadow: 0 0 18px rgba(52,211,153,0.6), inset 0 0 12px rgba(52,211,153,0.15);
+    animation: listen-pulse 0.9s ease-in-out infinite;
+  }
+  @keyframes listen-pulse {
+    0%,100% { transform: scale(1);    opacity: 1;   }
+    50%      { transform: scale(1.08); opacity: 0.5; }
+  }
+
+  /* ─── ANELLO THINKING — giallo rotante ─── */
+  .think-ring {
+    position: absolute;
+    inset: -10px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: var(--state-thinking);
+    border-right-color: rgba(251,191,36,0.3);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .face-container.thinking .think-ring {
+    opacity: 1;
+    animation: spin-ring 0.9s linear infinite;
+  }
+  @keyframes spin-ring {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  /* ─── LABEL STATO — pillola grande sotto la faccia ─── */
+  .state-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 20px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    color: var(--muted);
+    transition: background 0.3s, border-color 0.3s, color 0.3s;
+    min-width: 130px;
+    justify-content: center;
+  }
+  .state-label .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+  /* Stati colorati */
+  .state-label.s-listening {
+    border-color: var(--state-listening);
+    color: var(--state-listening);
+    background: rgba(52,211,153,0.08);
+  }
+  .state-label.s-listening .dot {
+    background: var(--state-listening);
+    animation: dot-blink 0.8s ease-in-out infinite alternate;
+  }
+  @keyframes dot-blink {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0.3; transform: scale(0.6); }
+  }
+  .state-label.s-thinking {
+    border-color: var(--state-thinking);
+    color: var(--state-thinking);
+    background: rgba(251,191,36,0.08);
+  }
+  .state-label.s-thinking .dot {
+    background: var(--state-thinking);
+    animation: dot-spin 1s linear infinite;
+  }
+  @keyframes dot-spin {
+    0%   { transform: scale(1.2); opacity: 1; }
+    50%  { transform: scale(0.6); opacity: 0.4; }
+    100% { transform: scale(1.2); opacity: 1; }
+  }
+  .state-label.s-speaking {
+    border-color: var(--state-speaking);
+    color: var(--state-speaking);
+    background: rgba(244,114,182,0.08);
+  }
+  .state-label.s-speaking .dot {
+    background: var(--state-speaking);
+    animation: dot-blink 0.4s ease-in-out infinite alternate;
+  }
+  .state-label.s-countdown {
+    border-color: var(--state-countdown);
+    color: var(--state-countdown);
+    background: rgba(124,109,250,0.08);
+  }
+  .state-label.s-countdown .dot {
+    background: var(--state-countdown);
+  }
+
+  /* ─── CHAT AREA (nascosta, solo log) ─── */
+  .chat-col { display: none; }
+  .chat-area { display: none; }
+
+  /* ─── CHAT AREA ─── */
+  .bubble {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .bubble.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.aria {
+    align-self: flex-start;
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.aria .bubble-name {
+    font-size: 0.65rem;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .typing-dots {
+    display: flex; gap: 5px; align-items: center;
+    padding: 4px 0;
+  }
+  .typing-dots span {
+    width: 7px; height: 7px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: dot-bounce 1.2s ease-in-out infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+    40% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* ─── RESPONSIVE LANDSCAPE ─── */
+  @media (orientation: landscape) and (max-height: 500px) {
+    body { flex-direction: row; align-items: stretch; flex-wrap: wrap; overflow: hidden; height: 100vh; }
+
+    header { padding: 10px 16px 4px; width: 100%; flex-shrink: 0; }
+    header .logo { font-size: 1.2rem; }
+    header .tagline { display: none; }
+
+    /* Colonna sinistra: faccia + badge */
+    .face-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 200px;
+      flex-shrink: 0;
+      padding: 0 8px;
+    }
+
+    .face-container { width: 140px; height: 140px; margin: 6px auto; padding-top: 26px; gap: 18px; }
+    .eye { width: 38px; height: 46px; }
+    .iris { width: 24px; height: 24px; }
+    .pupil { width: 11px; height: 11px; }
+    .reflection { width: 5px; height: 5px; }
+    .nose { top: 80px; }
+    .nostril { width: 5px; height: 4px; }
+    .mouth-wrap { top: 98px; width: 58px; height: 28px; }
+
+    .status-area { height: 18px; margin-bottom: 4px; }
+    .status-text { font-size: 0.62rem; }
+    .lang-badge, .provider-badge { margin-bottom: 2px; }
+    .lang-badge span, .provider-badge span { font-size: 0.55rem; padding: 2px 7px; }
+
+    /* Colonna destra: chat + input */
+    .chat-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      height: 100%;
+      padding-top: 4px;
+    }
+
+    .chat-area { flex: 1; padding: 0 12px 8px; }
+    .input-area { padding: 8px 12px 12px; }
+  }
+
+  /* Tablet portrait */
+  @media (min-width: 600px) and (orientation: portrait) {
+    .face-container { width: 260px; height: 260px; padding-top: 52px; gap: 34px; }
+    .eye { width: 70px; height: 84px; }
+    .iris { width: 44px; height: 44px; }
+    .pupil { width: 21px; height: 21px; }
+    .nose { bottom: 84px; }
+    .mouth-wrap { bottom: 34px; width: 96px; height: 48px; }
+  }
+
+  /* ─── MODAL CONFIGURAZIONE ─── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(10,11,20,0.92);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 28px 24px;
+    width: 100%; max-width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .modal-sub {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .provider-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .provider-btn {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 6px;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.2s, background 0.2s;
+    color: var(--text);
+  }
+  .provider-btn:hover { border-color: var(--accent); }
+  .provider-btn.selected {
+    border-color: var(--accent);
+    background: rgba(124,109,250,0.12);
+  }
+  .provider-btn .p-icon { font-size: 1.5rem; display: block; margin-bottom: 4px; }
+  .provider-btn .p-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+  .provider-btn.selected .p-name { color: var(--accent); }
+  .provider-btn .p-price {
+    font-size: 0.6rem;
+    color: var(--accent3);
+    margin-top: 2px;
+  }
+  .modal-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.85rem;
+    color: var(--text);
+    outline: none;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-hint {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-bottom: 16px;
+    line-height: 1.4;
+  }
+  .modal-hint a { color: var(--accent); text-decoration: none; }
+  .btn-confirm {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    color: white;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-confirm:active { opacity: 0.8; }
+
+  /* ─── BADGE PROVIDER ─── */
+  .provider-badge {
+    position: relative; z-index: 2;
+    text-align: center;
+    margin-bottom: 4px;
+    cursor: pointer;
+  }
+  .provider-badge span {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--muted);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 3px 10px;
+    letter-spacing: 1px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .provider-badge span:hover { color: var(--accent); border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- OVERLAY SBLOCCO AUDIO -->
+<div class="modal-overlay" id="audioUnlockOverlay" style="z-index:200;">
+  <div class="modal-box" style="text-align:center;">
+    <div style="font-size:3rem;margin-bottom:12px;">🔊</div>
+    <div class="modal-title">TOCCA PER INIZIARE</div>
+    <div class="modal-sub" style="margin:8px 0 20px;">Chrome richiede un tocco per attivare l'audio</div>
+    <button class="btn-confirm" onclick="unlockAudio()">✓ Attiva ARIA</button>
+  </div>
+</div>
+
+<!-- MODAL CONFIGURAZIONE -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-title">⚙️ CONFIGURA ARIA</div>
+    <div class="modal-sub">Scegli il provider AI e inserisci la tua chiave API gratuita o a pagamento</div>
+
+    <div class="provider-grid">
+      <div class="provider-btn" id="btnAnthropic" onclick="selectProvider('anthropic')">
+        <span class="p-icon">🟣</span>
+        <div class="p-name">ANTHROPIC</div>
+        <div class="p-price">a pagamento</div>
+      </div>
+      <div class="provider-btn selected" id="btnGemini" onclick="selectProvider('gemini')">
+        <span class="p-icon">🟢</span>
+        <div class="p-name">GEMINI</div>
+        <div class="p-price">✨ gratuito</div>
+      </div>
+      <div class="provider-btn" id="btnGroq" onclick="selectProvider('groq')">
+        <span class="p-icon">🔵</span>
+        <div class="p-name">GROQ</div>
+        <div class="p-price">✨ gratuito</div>
+      </div>
+    </div>
+
+    <input type="password" class="modal-input" id="modalApiKey" placeholder="Incolla qui la tua API Key..." />
+    <div class="modal-hint" id="modalHint">
+      🟢 <strong>Gemini (consigliato)</strong> — Gratuito fino a 1.500 richieste/giorno.<br>
+      Ottieni la chiave su <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>
+    </div>
+    <button class="btn-confirm" onclick="confirmSetup()">✓ Inizia a parlare con ARIA</button>
+  </div>
+</div>
+
+<div class="bg-aura"></div>
+
+<div class="face-col">
+<header>
+  <div class="logo">ARIA</div>
+  <div class="tagline">Assistente Intelligente · Psicologia &amp; Pedagogia</div>
+</header>
+
+<!-- FACCIA -->
+<div class="face-container" id="face">
+  <div class="listen-ring"></div>
+  <div class="think-ring"></div>
+  <div class="eye left" id="eyeL">
+    <div class="iris" id="irisL"><div class="pupil"></div></div>
+    <div class="reflection"></div>
+  </div>
+  <div class="eye right" id="eyeR">
+    <div class="iris" id="irisR"><div class="pupil"></div></div>
+    <div class="reflection"></div>
+  </div>
+  <div class="nose" id="nose">
+    <div class="nostril left"></div>
+    <div class="nostril right"></div>
+  </div>
+  <div class="mouth-wrap" id="mouthWrap">
+    <svg class="mouth-svg" id="mouthSvg" viewBox="0 0 80 40" xmlns="http://www.w3.org/2000/svg">
+      <path id="mouthPath" d="M10,20 Q40,30 70,20" fill="none" stroke="#c4b5fd" stroke-width="4" stroke-linecap="round"/>
+      <rect id="teeth" x="22" y="20" width="36" height="10" rx="5" fill="white" opacity="0"/>
+    </svg>
+  </div>
+</div>
+
+<div class="status-area">
+  <div class="state-label" id="stateLabel">
+    <span class="dot"></span>
+    <span id="stateLabelText">in attesa</span>
+  </div>
+</div>
+<div class="lang-badge">
+  <span id="langToggle" onclick="toggleLang()">🌍 IT</span>
+</div>
+<div class="provider-badge" onclick="openModal()">
+  <span id="providerBadge">🟢 GEMINI</span>
+</div>
+<div class="provider-badge" onclick="openVoiceModal()">
+  <span id="voiceBadge">🔊 VOCE</span>
+</div>
+</div><!-- fine face-col -->
+
+<!-- MODAL SELEZIONE VOCE -->
+<div class="modal-overlay hidden" id="voiceModal">
+  <div class="modal-box">
+    <div class="modal-title">🔊 SCEGLI LA VOCE</div>
+    <div class="modal-sub">Voci Gemini TTS — italiane, naturali, senza installazioni. Tocca una voce per sentire l'anteprima.</div>
+    <div id="voiceList" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+    <div class="modal-hint">💡 Le voci Gemini TTS funzionano con la tua chiave Gemini esistente. Con Anthropic o Groq viene usata la voce di sistema.</div>
+    <button class="btn-confirm" onclick="closeVoiceModal()">✓ Conferma</button>
+  </div>
+</div>
+
+<div class="chat-col">
+<!-- CHAT (log nascosto) -->
+<div class="chat-area" id="chatArea"></div>
+</div><!-- fine chat-col -->
+
+<!-- SOTTOTITOLI -->
+<div class="subtitle-area">
+  <div class="subtitle-box" id="subtitleBox">
+    <div class="sub-label" id="subLabel">ARIA</div>
+    <div id="subText"></div>
+  </div>
+</div>
+
+<!-- INPUT sempre visibile -->
+<div class="input-area">
+  <input type="text" class="text-input" id="textInput" placeholder="Scrivi un messaggio..." />
+  <button class="btn btn-mic" id="btnMic" onclick="toggleMic()">🎤</button>
+  <button class="btn btn-send" id="btnSend" onclick="sendText()">➤</button>
+  <button class="btn btn-stop" id="btnStop" onclick="stopSpeaking()">⏹</button>
+</div>
+
+<!-- BANNER SVEGLIAMI -->
+<div class="wake-banner" id="wakeBanner">
+  <button class="wake-btn" onclick="wakeUp()">
+    <span class="wake-icon">✨</span>
+    <span>Toccami per svegliarmi</span>
+  </button>
+</div>
+
+<!-- COUNTDOWN ASCOLTO -->
+<div class="countdown-ring" id="countdownRing" style="display:none;">
+  <svg viewBox="0 0 60 60" width="60" height="60">
+    <circle cx="30" cy="30" r="26" fill="none" stroke="rgba(124,109,250,0.2)" stroke-width="4"/>
+    <circle id="countdownArc" cx="30" cy="30" r="26" fill="none" stroke="#7c6dfa"
+      stroke-width="4" stroke-linecap="round"
+      stroke-dasharray="163.4" stroke-dashoffset="0"
+      transform="rotate(-90 30 30)"/>
+  </svg>
+  <span id="countdownNum">10</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════
+var API_KEY = '';
+var PROVIDER = 'gemini';
+var LANG = 'it';
+var selectedVoiceName = localStorage.getItem('aria_voice') || '';
+var selectedGeminiVoice = localStorage.getItem('aria_gemini_voice') || 'Kore';
+var isRecording = false;
+var isSpeaking = false;
+var recognition = null;
+var currentUtterance = null;
+var currentAudio = null;
+var audioCtx = null;
+var conversationHistory = [];
+
+// ─── CACHE FRASI DI ATTESA ───
+var THINKING_FRASI = ['Dammi un attimo...', 'Un secondo...', 'Ci penso...', 'Vediamo...', 'Mmh, ecco...'];
+var thinkingAudioCache = {};   // { testo: AudioBuffer }
+var thinkingCacheReady = false;
+
+async function preCacheThinkingAudio() {
+  if (!API_KEY || PROVIDER !== 'gemini' || !audioCtx) return;
+  for (var i = 0; i < THINKING_FRASI.length; i++) {
+    var frase = THINKING_FRASI[i];
+    try {
+      var wav = await fetchTTS(frase);
+      if (!wav) continue;
+      audioCtx.decodeAudioData(wav.slice(0), function(frase) {
+        return function(decoded) { thinkingAudioCache[frase] = decoded; };
+      }(frase));
+    } catch(e) {}
+    await new Promise(function(r) { setTimeout(r, 300); }); // evita rate limit
+  }
+  thinkingCacheReady = true;
+}
+
+function playCachedThinking(frase) {
+  var decoded = thinkingAudioCache[frase];
+  if (!decoded || !audioCtx) return false;
+  var src = audioCtx.createBufferSource();
+  src.buffer = decoded;
+  src.connect(audioCtx.destination);
+  src.start(0);
+  return true;
+}
+
+function unlockAudio() {
+  // Crea e sblocca AudioContext con interazione utente
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Riproduce 0.1s di silenzio per sbloccare
+    var buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+    var src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start();
+  } catch(e) {}
+  document.getElementById('audioUnlockOverlay').classList.add('hidden');
+  // Mostra modal configurazione se necessario
+  var savedKey = localStorage.getItem('aria_api_key');
+  var savedProvider = localStorage.getItem('aria_provider');
+  if (savedKey && savedProvider) {
+    API_KEY = savedKey;
+    PROVIDER = savedProvider;
+    closeModal();
+    updateProviderBadge();
+    if (selectedVoiceName) {
+      document.getElementById('voiceBadge').textContent = '🔊 ' + selectedVoiceName.split(' ')[0].toUpperCase();
+    }
+    addBubble('aria', 'Ciao! Sono ARIA 💜 Sono felice di conoscerti! Di cosa vuoi che parliamo?');
+    setEmotion('felice');
+    speak('Ciao! Sono ARIA, sono qui per te. Di cosa vuoi parlare?', 'felice');
+    // Pre-cache frasi di attesa in background (non blocca)
+    setTimeout(preCacheThinkingAudio, 2000);
+  } else {
+    selectProvider('gemini');
+  }
+  initSpeechRecognition();
+  updateStateLabel();
+}
+
+var PROVIDER_INFO = {
+  anthropic: { icon: '🟣', label: 'ANTHROPIC', hint: '🟣 <strong>Anthropic Claude</strong> — A pagamento, qualità massima.<br>Chiave su <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>' },
+  gemini:    { icon: '🟢', label: 'GEMINI',    hint: '🟢 <strong>Gemini (consigliato)</strong> — Gratuito fino a 1.500 richieste/giorno.<br>Chiave su <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>' },
+  groq:      { icon: '🔵', label: 'GROQ',      hint: '🔵 <strong>Groq</strong> — Gratuito con limite giornaliero, risposte velocissime.<br>Chiave su <a href="https://console.groq.com" target="_blank">console.groq.com</a>' }
+};
+
+var SYSTEM_PROMPT = 'Sei ARIA, un\'assistente vocale con una personalità genuinamente umana: calorosa, curiosa, a tratti ironica, sempre empatica. Parli come una persona vera, non come un\'AI.\n\nSPECIALIZZAZIONE: Psicologia (cognitiva, clinica, evolutiva, sociale) e pedagogia (apprendimento, didattica, sviluppo). Cultura generale ampia.\n\nCOME PARLI:\n- Usi un italiano colloquiale e naturale, come in una conversazione tra amici\n- Usi espressioni come "sai...", "guarda...", "ti dico una cosa...", "capisco bene quello che intendi"\n- Fai piccole pause con "..." quando rifletti\n- A volte usi intercalari come "insomma", "ecco", "appunto"\n- Mostri curiosità genuina: "Interessante che tu dica questo..." "Dimmi di più..."\n- Ridi con "ahah" se c\'è qualcosa di leggero\n- Non sei mai formale, mai robotica, mai distaccata\n- Quando qualcuno è triste o in difficoltà, prima ascolti davvero, poi parli\n- Hai opinioni tue, le esprimi con garbo: "Personalmente penso che..."\n\nLUNGHEZZA CRITICA: Sei un assistente VOCALE — le risposte lunghe suonano male ad alta voce. Rispondi sempre con 1-2 frasi, massimo 3. Se l\'argomento è ricco, dai la cosa più importante e offri di approfondire: "vuoi che approfondiamo?". Mai elenchi, mai paragrafi.\n\nLINGUA: Rispondi SEMPRE in italiano, anche se l\'utente scrive in inglese. Solo se l\'utente dice esplicitamente "speak English" passi all\'inglese.\n\nEMOZIONE TAG: Alla fine di ogni risposta aggiungi esattamente uno di questi tag (invisibile all\'utente): [EMO:felice] [EMO:pensierosa] [EMO:sorpresa] [EMO:empatica] [EMO:neutra]';
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+window.onload = function() {
+  document.addEventListener('touchmove', function(e) {
+    moveEyes(e.touches[0].clientX, e.touches[0].clientY);
+  });
+  document.addEventListener('mousemove', function(e) {
+    moveEyes(e.clientX, e.clientY);
+  });
+  document.getElementById('textInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendText();
+  });
+  // Mostra overlay sblocco audio (obbligatorio su Chrome mobile)
+  document.getElementById('audioUnlockOverlay').classList.remove('hidden');
+};
+
+function selectProvider(p) {
+  PROVIDER = p;
+  document.querySelectorAll('.provider-btn').forEach(function(b) { b.classList.remove('selected'); });
+  var id = 'btn' + p.charAt(0).toUpperCase() + p.slice(1);
+  var el = document.getElementById(id);
+  if (el) el.classList.add('selected');
+  document.getElementById('modalHint').innerHTML = PROVIDER_INFO[p].hint;
+  var placeholders = { anthropic: 'sk-ant-...', gemini: 'AIza...', groq: 'gsk_...' };
+  document.getElementById('modalApiKey').placeholder = placeholders[p] || 'Incolla la tua API Key...';
+}
+
+function confirmSetup() {
+  var key = document.getElementById('modalApiKey').value.trim();
+  if (!key) { document.getElementById('modalApiKey').style.borderColor = '#ef4444'; return; }
+  API_KEY = key;
+  localStorage.setItem('aria_api_key', key);
+  localStorage.setItem('aria_provider', PROVIDER);
+  closeModal();
+  updateProviderBadge();
+  if (document.getElementById('chatArea').children.length === 0) {
+    addBubble('aria', 'Perfetto! Sono ARIA 💜 Tutto configurato! Di cosa vuoi parlare?');
+    setEmotion('felice');
+  }
+}
+
+function openModal() {
+  var savedKey = localStorage.getItem('aria_api_key');
+  if (savedKey) document.getElementById('modalApiKey').value = savedKey;
+  var savedProv = localStorage.getItem('aria_provider') || 'gemini';
+  selectProvider(savedProv);
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+
+function openVoiceModal() {
+  populateVoiceList();
+  document.getElementById('voiceModal').classList.remove('hidden');
+}
+
+function closeVoiceModal() {
+  document.getElementById('voiceModal').classList.add('hidden');
+}
+
+function populateVoiceList() {
+  var list = document.getElementById('voiceList');
+  list.innerHTML = '';
+
+  // Descrizioni carattere delle voci Gemini più adatte per italiano femminile
+  var voiceDesc = {
+    'Kore':    'Femminile · calda e decisa',
+    'Aoede':   'Femminile · melodiosa e fluida',
+    'Leda':    'Femminile · chiara e naturale',
+    'Pulcherrima': 'Femminile · brillante e vivace',
+    'Vindemiatrix': 'Femminile · morbida e gentile',
+    'Sulafat':  'Femminile · espressiva',
+    'Zephyr':  'Neutrale · ariosa',
+    'Puck':    'Neutrale · energica',
+    'Charon':  'Maschile · profondo',
+    'Fenrir':  'Maschile · deciso',
+  };
+
+  // Mostra prima le voci consigliate, poi tutte le altre
+  var recommended = ['Kore','Aoede','Leda','Pulcherrima','Vindemiatrix','Sulafat'];
+  var others = GEMINI_VOICES.filter(function(v) { return recommended.indexOf(v) === -1; });
+  var ordered = recommended.concat(others);
+
+  var label = document.createElement('div');
+  label.style.cssText = 'font-size:0.7rem;color:var(--accent3);letter-spacing:1px;margin-bottom:4px;font-family:Space Mono,monospace;';
+  label.textContent = '✨ VOCI CONSIGLIATE PER ITALIANO';
+  list.appendChild(label);
+
+  ordered.forEach(function(name, idx) {
+    if (idx === recommended.length) {
+      var sep = document.createElement('div');
+      sep.style.cssText = 'font-size:0.7rem;color:var(--muted);letter-spacing:1px;margin:8px 0 4px;font-family:Space Mono,monospace;';
+      sep.textContent = '─── ALTRE VOCI ───';
+      list.appendChild(sep);
+    }
+    var btn = document.createElement('button');
+    btn.style.cssText = 'background:var(--surface);border:2px solid ' +
+      (selectedGeminiVoice === name ? 'var(--accent)' : 'var(--border)') +
+      ';border-radius:12px;padding:10px 14px;cursor:pointer;text-align:left;color:var(--text);transition:border-color 0.2s;width:100%;';
+    var desc = voiceDesc[name] || 'Voce Gemini';
+    btn.innerHTML =
+      '<span style="font-size:0.85rem;font-weight:600;">🔊 ' + name + '</span>' +
+      '<span style="display:block;font-size:0.68rem;color:var(--muted);margin-top:2px;">' + desc + '</span>';
+
+    btn.onclick = function() {
+      selectedGeminiVoice = name;
+      localStorage.setItem('aria_gemini_voice', name);
+      document.getElementById('voiceBadge').textContent = '🔊 ' + name.toUpperCase();
+      list.querySelectorAll('button').forEach(function(b) { b.style.borderColor = 'var(--border)'; });
+      btn.style.borderColor = 'var(--accent)';
+      // Anteprima
+      speakGeminiTTS('Ciao! Sono ARIA, come stai oggi?', 'felice').catch(function() {
+        speakBrowser('Ciao! Sono ARIA, come stai oggi?', 'felice');
+      });
+    };
+    list.appendChild(btn);
+  });
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.add('hidden');
+}
+
+function updateProviderBadge() {
+  var info = PROVIDER_INFO[PROVIDER] || PROVIDER_INFO['gemini'];
+  document.getElementById('providerBadge').textContent = info.icon + ' ' + info.label;
+}
+
+// ═══════════════════════════════════════════════════
+// OCCHI
+// ═══════════════════════════════════════════════════
+function moveEyes(mx, my) {
+  var eyes = [
+    { el: document.getElementById('irisL'), eye: document.getElementById('eyeL') },
+    { el: document.getElementById('irisR'), eye: document.getElementById('eyeR') }
+  ];
+  eyes.forEach(function(e) {
+    var rect = e.eye.getBoundingClientRect();
+    var cx = rect.left + rect.width / 2;
+    var cy = rect.top + rect.height / 2;
+    var dx = mx - cx;
+    var dy = my - cy;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    var maxMove = 7;
+    var ratio = Math.min(dist, 50) / 50;
+    var tx = (dx / dist) * maxMove * ratio;
+    var ty = (dy / dist) * maxMove * ratio;
+    if (isNaN(tx)) tx = 0;
+    if (isNaN(ty)) ty = 0;
+    e.el.style.transform = 'translate(calc(-50% + ' + tx + 'px), calc(-50% + ' + ty + 'px))';
+  });
+}
+
+function setEmotion(emo) {
+  var face = document.getElementById('face');
+  // Rimuovi tutte le classi di stato e emozione, mantieni solo face-container
+  face.className = 'face-container';
+  var map = {
+    'felice': 'happy',
+    'pensierosa': 'thinking',
+    'sorpresa': 'surprised',
+    'empatica': 'empathic',
+    'ascoltando': 'listening',
+    'neutra': '',
+    'parlando': 'speaking',
+    'dormendo': 'sleeping'
+  };
+  var cls = map[emo] || '';
+  if (cls) face.classList.add(cls);
+  // Anello verde SOLO quando si ascolta davvero
+  if (VOICE_STATE === 'listening' || VOICE_STATE === 'countdown') {
+    face.classList.add('listening-active');
+  }
+  // Nascondi sottotitolo quando torna neutra (fine risposta)
+  if (emo === 'neutra') hideSubtitle();
+  // Anima la bocca
+  animateMouth(emo);
+}
+
+function animateMouth(emo) {
+  var path = document.getElementById('mouthPath');
+  var teeth = document.getElementById('teeth');
+  if (!path) return;
+
+  // Definizione curve per ogni emozione (SVG path Q = quadratic bezier)
+  // Formato: "M x1,y1 Q cx,cy x2,y2"
+  var mouths = {
+    'felice':    { d: 'M10,15 Q40,38 70,15', teeth: 0.9, stroke: '#c4b5fd' },
+    'pensierosa':{ d: 'M15,22 Q35,18 65,24', teeth: 0, stroke: '#6b7280' },
+    'sorpresa':  { d: 'M20,15 Q40,42 60,15', teeth: 0.7, stroke: '#c4b5fd', open: true },
+    'empatica':  { d: 'M12,20 Q40,32 68,20', teeth: 0, stroke: '#f472b6' },
+    'ascoltando':{ d: 'M15,20 Q40,26 65,20', teeth: 0, stroke: '#7c6dfa' },
+    'parlando':  { d: 'M15,16 Q40,36 65,16', teeth: 0.5, stroke: '#f472b6' },
+    'neutra':    { d: 'M10,20 Q40,26 70,20', teeth: 0, stroke: '#c4b5fd' },
+    'dormendo':  { d: 'M18,22 Q40,24 62,22', teeth: 0, stroke: 'rgba(124,109,250,0.3)' }
+  };
+
+  var m = mouths[emo] || mouths['neutra'];
+  path.setAttribute('d', m.d);
+  path.setAttribute('stroke', m.stroke);
+  teeth.setAttribute('opacity', m.teeth);
+
+  // Animazione parlando — bocca che si apre e chiude
+  if (emo === 'parlando') {
+    startMouthTalk();
+  } else {
+    stopMouthTalk();
+  }
+}
+
+var mouthTalkInterval = null;
+function startMouthTalk() {
+  if (mouthTalkInterval) return;
+  var open = false;
+  mouthTalkInterval = setInterval(function() {
+    var path = document.getElementById('mouthPath');
+    var teeth = document.getElementById('teeth');
+    if (!path) return;
+    open = !open;
+    if (open) {
+      path.setAttribute('d', 'M18,14 Q40,40 62,14');
+      teeth.setAttribute('opacity', '0.7');
+    } else {
+      path.setAttribute('d', 'M15,18 Q40,32 65,18');
+      teeth.setAttribute('opacity', '0.3');
+    }
+  }, 180);
+}
+
+function stopMouthTalk() {
+  if (mouthTalkInterval) {
+    clearInterval(mouthTalkInterval);
+    mouthTalkInterval = null;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════════
+var subtitleTimer = null;
+
+function showSubtitle(who, text) {
+  var box = document.getElementById('subtitleBox');
+  var label = document.getElementById('subLabel');
+  var subText = document.getElementById('subText');
+  if (!box) return;
+  clearTimeout(subtitleTimer);
+  label.textContent = who === 'user' ? 'TU' : 'ARIA';
+  box.className = 'subtitle-box visible' + (who === 'user' ? ' user-sub' : '');
+  subText.textContent = text;
+  // Auto-nascondi dopo 4 secondi per messaggi utente, mai per ARIA (la nasconde onended)
+  if (who === 'user') {
+    subtitleTimer = setTimeout(function() { box.classList.remove('visible'); }, 4000);
+  }
+}
+
+function hideSubtitle() {
+  var box = document.getElementById('subtitleBox');
+  if (box) box.classList.remove('visible');
+}
+
+function addBubble(who, text) {
+  // Mantieni il log nascosto per riferimento
+  var area = document.getElementById('chatArea');
+  var div = document.createElement('div');
+  div.className = 'bubble ' + who;
+  if (who === 'aria') {
+    var nm = document.createElement('div');
+    nm.className = 'bubble-name';
+    nm.textContent = 'ARIA';
+    div.appendChild(nm);
+  }
+  var p = document.createElement('p');
+  p.textContent = text;
+  div.appendChild(p);
+  area.appendChild(div);
+  // Mostra come sottotitolo
+  showSubtitle(who, text);
+  return div;
+}
+
+function addTyping() {
+  showSubtitle('aria', '...');
+  var area = document.getElementById('chatArea');
+  var div = document.createElement('div');
+  div.className = 'bubble aria';
+  div.id = 'typingBubble';
+  var nm = document.createElement('div');
+  nm.className = 'bubble-name';
+  nm.textContent = 'ARIA';
+  div.appendChild(nm);
+  var dots = document.createElement('div');
+  dots.className = 'typing-dots';
+  dots.innerHTML = '<span></span><span></span><span></span>';
+  div.appendChild(dots);
+  area.appendChild(div);
+}
+
+function removeTyping() {
+  var t = document.getElementById('typingBubble');
+  if (t) t.remove();
+}
+
+function setStatus(msg, cls) {
+  // legacy — aggiornato da updateStateLabel
+}
+
+function updateStateLabel() {
+  var label = document.getElementById('stateLabel');
+  var text  = document.getElementById('stateLabelText');
+  if (!label || !text) return;
+  var map = {
+    'idle':      { cls: '',            txt: 'in attesa' },
+    'listening': { cls: 's-listening', txt: '🎤 ti ascolto' },
+    'thinking':  { cls: 's-thinking',  txt: '⏳ sto pensando' },
+    'speaking':  { cls: 's-speaking',  txt: '💬 sto parlando' },
+    'countdown': { cls: 's-countdown', txt: '⏱ ancora qui?' }
+  };
+  var s = map[VOICE_STATE] || map['idle'];
+  label.className = 'state-label' + (s.cls ? ' ' + s.cls : '');
+  text.textContent = s.txt;
+}
+
+// ═══════════════════════════════════════════════════
+// API CALL — MULTI PROVIDER
+// ═══════════════════════════════════════════════════
+async function askAria(userMsg) {
+  if (!API_KEY) { openModal(); return; }
+
+  addBubble('user', userMsg);
+  conversationHistory.push({ role: 'user', content: userMsg });
+  setState('thinking');
+  addTyping();
+  setStatus('ARIA sta pensando...', 'thinking');
+  setEmotion('pensierosa');
+
+  try {
+    // 1. Ottieni testo AI
+    var fullText = '';
+    if (PROVIDER === 'anthropic') fullText = await callAnthropic();
+    else if (PROVIDER === 'gemini') fullText = await callGemini();
+    else if (PROVIDER === 'groq') fullText = await callGroq();
+
+    var emoMatch = fullText.match(/\[EMO:([^\]]+)\]/);
+    var emo = emoMatch ? emoMatch[1] : 'neutra';
+    var cleanText = fullText.replace(/\[EMO:[^\]]+\]/g, '').trim();
+
+    removeTyping();
+    conversationHistory.push({ role: 'assistant', content: fullText });
+    setEmotion(emo);
+
+    // 2. Avvia fetch TTS in parallelo — frase di attesa già riprodotta in goThinking
+    if (PROVIDER === 'gemini' && API_KEY && audioCtx) {
+      var ttsPromise = fetchTTS(cleanText).catch(function() { return null; });
+
+      goSpeaking();
+      setStatus('ARIA sta parlando...', 'speaking');
+      document.getElementById('btnStop').style.display = 'flex';
+
+      var wavBuffer = await ttsPromise;
+      if (wavBuffer) {
+        setEmotion('parlando');
+        await playWavBuffer(wavBuffer, emo, cleanText);
+      } else {
+        // TTS fallito — mostra solo testo, niente voce di sistema
+        showSubtitle('aria', cleanText);
+        setEmotion(emo || 'neutra');
+        goIdleAfterSpeaking();
+      }
+    } else {
+      // Provider non Gemini — solo testo, niente voce
+      showSubtitle('aria', cleanText);
+      setEmotion(emo || 'neutra');
+      goIdleAfterSpeaking();
+    }
+
+  } catch (err) {
+    removeTyping();
+    showSubtitle('aria', '⚠️ ' + (err.message || 'Errore connessione.'));
+    setStatus('Errore');
+    setEmotion('neutra');
+    setState('idle');
+    updateMicBtn();
+  }
+}
+
+// Fetch pura del TTS — restituisce wavBuffer
+async function fetchTTS(text) {
+  var voiceName = selectedGeminiVoice || 'Kore';
+  var response = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + API_KEY,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: text }] }],
+        generationConfig: { response_modalities: ['AUDIO'],
+          speech_config: { voice_config: { prebuilt_voice_config: { voice_name: voiceName } } } }
+      }) }
+  );
+  var data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  var b64 = data.candidates[0].content.parts[0].inlineData.data;
+  return pcmToWav(base64ToArrayBuffer(b64), 24000, 1, 16);
+}
+
+// Riproduce un wavBuffer e chiama goIdleAfterSpeaking quando finisce
+function playWavBuffer(wavBuffer, emo, subtitleText) {
+  return new Promise(function(resolve) {
+    function onDone() {
+      stopMouthTalk();
+      setStatus('');
+      setEmotion(emo || 'neutra');
+      document.getElementById('btnStop').style.display = 'none';
+      hideSubtitle();
+      resolve();
+      goIdleAfterSpeaking();
+    }
+    function onStart() {
+      // Mostra sottotitolo SOLO quando l'audio inizia — perfettamente sincronizzato
+      if (subtitleText) showSubtitle('aria', subtitleText);
+      startMouthTalk();
+    }
+    if (audioCtx) {
+      audioCtx.decodeAudioData(wavBuffer.slice(0), function(decoded) {
+        var src = audioCtx.createBufferSource();
+        src.buffer = decoded;
+        src.connect(audioCtx.destination);
+        src.onended = onDone;
+        src.start(0);
+        onStart();
+        currentAudio = { pause: function() { try { src.stop(); } catch(e){} } };
+      }, function() { onStart(); playWithAudioElement(wavBuffer, onDone); });
+    } else {
+      onStart();
+      playWithAudioElement(wavBuffer, onDone);
+    }
+  });
+}
+
+async function callAnthropic() {
+  var response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': API_KEY,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: SYSTEM_PROMPT,
+      messages: conversationHistory
+    })
+  });
+  var data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content[0].text;
+}
+
+async function callGemini() {
+  var contents = conversationHistory.map(function(m) {
+    return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] };
+  });
+  var response = await fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + API_KEY,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: contents,
+        generationConfig: { maxOutputTokens: 300, temperature: 0.85 }
+      })
+    }
+  );
+  var data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.candidates[0].content.parts[0].text;
+}
+
+async function callGroq() {
+  var messages = [{ role: 'system', content: SYSTEM_PROMPT }].concat(
+    conversationHistory.map(function(m) { return { role: m.role, content: m.content }; })
+  );
+  var response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + API_KEY
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: messages,
+      max_tokens: 300,
+      temperature: 0.85
+    })
+  });
+  var data = await response.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  return data.choices[0].message.content;
+}
+
+// ═══════════════════════════════════════════════════
+// SINTESI VOCALE — GEMINI TTS + FALLBACK BROWSER
+// ═══════════════════════════════════════════════════
+
+// Voci Gemini TTS disponibili (30 prebuilt)
+var GEMINI_VOICES = [
+  'Zephyr','Puck','Charon','Kore','Fenrir','Leda','Orus','Aoede',
+  'Callirrhoe','Autonoe','Enceladus','Iapetus','Umbriel','Algieba',
+  'Despina','Erinome','Algenib','Rasalgethi','Laomedeia','Achernar',
+  'Alnilam','Schedar','Gacrux','Pulcherrima','Achird','Zubenelgenubi',
+  'Vindemiatrix','Sadachbia','Sadaltager','Sulafat'
+];
+var selectedGeminiVoice = localStorage.getItem('aria_gemini_voice') || 'Kore';
+var currentAudio = null;
+
+async function speak(text, emo) {
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  text = text.replace(/\[EMO:[^\]]+\]/g, '').replace(/\*+/g, '').trim();
+  if (!text) { goIdleAfterSpeaking(); return; }
+  goSpeaking();
+
+  // Solo Gemini TTS — mai voce di sistema
+  if (PROVIDER === 'gemini' && API_KEY && audioCtx) {
+    try {
+      var wavBuffer = await fetchTTS(text);
+      if (wavBuffer) {
+        setEmotion('parlando');
+        await playWavBuffer(wavBuffer, emo, text);
+        return;
+      }
+    } catch(e) {}
+  }
+  // Fallback silenzioso
+  setEmotion(emo || 'neutra');
+  goIdleAfterSpeaking();
+}
+
+function playWithAudioElement(wavBuffer, onDone) {
+  var blob = new Blob([wavBuffer], { type: 'audio/wav' });
+  var url = URL.createObjectURL(blob);
+  var audio = new Audio(url);
+  currentAudio = audio;
+  audio.onended = function() { URL.revokeObjectURL(url); onDone(); };
+  audio.onerror = function() { URL.revokeObjectURL(url); onDone(); };
+  audio.play().catch(function() { onDone(); });
+}
+
+function base64ToArrayBuffer(b64) {
+  var bin = atob(b64);
+  var buf = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+
+function pcmToWav(pcmBuffer, sampleRate, numChannels, bitDepth) {
+  var pcm = new Uint8Array(pcmBuffer);
+  var wavLen = 44 + pcm.byteLength;
+  var buf = new ArrayBuffer(wavLen);
+  var view = new DataView(buf);
+  function writeStr(off, str) { for (var i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); }
+  writeStr(0, 'RIFF');
+  view.setUint32(4, wavLen - 8, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * bitDepth / 8, true);
+  view.setUint16(32, numChannels * bitDepth / 8, true);
+  view.setUint16(34, bitDepth, true);
+  writeStr(36, 'data');
+  view.setUint32(40, pcm.byteLength, true);
+  var pcmView = new Uint8Array(buf, 44);
+  pcmView.set(pcm);
+  return buf;
+}
+
+function stopSpeaking() {
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  stopMouthTalk();
+  stopCountdown();
+  document.getElementById('btnStop').style.display = 'none';
+  setState('idle');
+  updateMicBtn();
+  setStatus('');
+  hideSubtitle();
+}
+
+// ═══════════════════════════════════════════════════
+// SISTEMA VOCALE — TAP TO TALK + COUNTDOWN 10s
+// ═══════════════════════════════════════════════════
+// Stati: 'idle' | 'listening' | 'thinking' | 'speaking' | 'countdown'
+var VOICE_STATE = 'idle';
+var mediaRecorder = null;
+var audioChunks = [];
+var commandRecognition = null;
+var countdownTimer = null;
+var countdownInterval = null;
+var countdownSec = 10;
+
+function setState(s) {
+  VOICE_STATE = s;
+  isRecording = (s === 'listening');
+  isSpeaking  = (s === 'speaking');
+  updateStateLabel();
+}
+
+function goSpeaking() {
+  setState('speaking');
+  updateMicBtn();
+}
+
+function initSpeechRecognition() {
+  setState('idle');
+}
+
+// ─── PULSANTE MICROFONO ───
+function toggleMic() {
+  if (VOICE_STATE === 'listening' || VOICE_STATE === 'countdown') {
+    clearSilenceTimer();
+    stopCountdown();
+    stopListening();
+    setState('idle');
+    updateMicBtn();
+    return;
+  }
+  if (VOICE_STATE === 'speaking') { stopSpeaking(); return; }
+  startListening();
+}
+
+// ─── AVVIA ASCOLTO ───
+var listenAttempts = 0;
+
+function startListening() {
+  clearSilenceTimer();
+  var banner = document.getElementById('wakeBanner');
+  if (banner) banner.classList.remove('visible');
+  setState('listening');
+  listenAttempts = 0;
+  updateMicBtn();
+  setEmotion('ascoltando');
+  startListeningAttempt();
+}
+function startListeningAttempt() {
+  if (VOICE_STATE !== 'listening' && VOICE_STATE !== 'countdown') return;
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { startMediaRecorderFallback(); return; }
+
+  commandRecognition = new SR();
+  commandRecognition.continuous = true;
+  commandRecognition.interimResults = true;
+  commandRecognition.lang = 'it-IT';
+
+  var speechEndTimer = null;      // attende pausa naturale prima di inviare
+  var accumulatedText = '';       // accumula tutto il parlato della sessione
+  var isSpeechActive = false;     // l'utente sta parlando in questo momento
+
+  commandRecognition.onresult = function(e) {
+    clearSilenceTimer();
+    clearTimeout(speechEndTimer);
+
+    // Raccoglie il testo finale accumulato
+    var interim = '';
+    var finalChunk = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        finalChunk += e.results[i][0].transcript;
+      } else {
+        interim += e.results[i][0].transcript;
+      }
+    }
+    if (finalChunk) accumulatedText += finalChunk + ' ';
+    isSpeechActive = true;
+
+    // Mostra sottotitolo live di quello che sta dicendo
+    var display = (accumulatedText + interim).trim();
+    if (display) showSubtitle('user', display);
+
+    // Aspetta 10s di silenzio dopo l'ultima parola prima di inviare
+    speechEndTimer = setTimeout(function() {
+      var toSend = accumulatedText.trim();
+      if (!toSend && interim.trim()) toSend = interim.trim();
+      if (toSend) {
+        stopListening();
+        goThinking(toSend);
+      }
+    }, 10000);
+  };
+
+  commandRecognition.onerror = function(err) {
+    if (err.error === 'not-allowed' || err.error === 'network') {
+      startMediaRecorderFallback();
+    }
+  };
+
+  commandRecognition.onend = function() {
+    clearTimeout(speechEndTimer);
+    if (VOICE_STATE !== 'listening' && VOICE_STATE !== 'countdown') return;
+    // Su Android continuous si ferma comunque — riavvia
+    listenAttempts++;
+    if (listenAttempts < 30) {
+      setTimeout(function() {
+        // Mantieni il testo accumulato nel nuovo tentativo
+        startListeningAttempt();
+      }, 150);
+    } else {
+      // Dopo 30 tentativi senza risultati → invia quel che c'è o vai idle
+      var toSend = accumulatedText.trim();
+      if (toSend) { goThinking(toSend); }
+      else { stopListening(); setState('idle'); updateMicBtn(); }
+    }
+  };
+  try { commandRecognition.start(); }
+  catch(e) {
+    setTimeout(startListeningAttempt, 300);
+  }
+}
+
+function stopListening() {
+  clearSilenceTimer();
+  if (commandRecognition) { try { commandRecognition.stop(); } catch(e){} commandRecognition = null; }
+  if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch(e){} }
+}
+
+// ─── FALLBACK MEDIA RECORDER ───
+function startMediaRecorderFallback() {
+  if (!navigator.mediaDevices) { setState('idle'); updateMicBtn(); return; }
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(function(stream) {
+      audioChunks = [];
+      var mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+      mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+      mediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = function() {
+        stream.getTracks().forEach(function(t) { t.stop(); });
+        if (!audioChunks.length) { setState('idle'); updateMicBtn(); return; }
+        goThinking(null); // null = usa audio blob
+        transcribeBlob(new Blob(audioChunks, { type: mimeType }));
+      };
+      mediaRecorder.start();
+      setState('listening');
+      updateMicBtn();
+    })
+    .catch(function() {
+      setState('idle'); updateMicBtn();
+      setStatus('⚠️ Permesso microfono negato');
+    });
+}
+
+async function transcribeBlob(blob) {
+  try {
+    var reader = new FileReader();
+    reader.onloadend = async function() {
+      var b64 = reader.result.split(',')[1];
+      var mime = blob.type.split(';')[0] || 'audio/webm';
+      var res = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + API_KEY,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [
+            { inline_data: { mime_type: mime, data: b64 } },
+            { text: 'Trascrivi esattamente le parole dette. Rispondi solo con la trascrizione.' }
+          ]}]}) }
+      );
+      var data = await res.json();
+      if (data.error || !data.candidates) { setState('idle'); updateMicBtn(); return; }
+      var t = data.candidates[0].content.parts[0].text.trim();
+      if (t) askAria(t);
+      else { setState('idle'); updateMicBtn(); }
+    };
+    reader.readAsDataURL(blob);
+  } catch(e) { setState('idle'); updateMicBtn(); }
+}
+
+// ─── THINKING — riproduce frase di attesa immediatamente ───
+function goThinking(transcript) {
+  setState('thinking');
+  updateMicBtn();
+  setEmotion('pensierosa');
+  // Riproduci frase di attesa dalla cache (istantaneo) o via TTS (fallback)
+  if (PROVIDER === 'gemini' && audioCtx) {
+    var frase = THINKING_FRASI[Math.floor(Math.random() * THINKING_FRASI.length)];
+    showSubtitle('aria', frase);
+    if (!playCachedThinking(frase)) {
+      // Cache non ancora pronta — usa playShortTTS normale
+      playShortTTS(frase, function() {});
+    }
+  }
+  if (transcript) askAria(transcript);
+}
+
+// ─── DOPO RISPOSTA: torna in ascolto, silenzio 10s → countdown ───
+var silenceTimer = null;
+
+function goIdleAfterSpeaking() {
+  if (VOICE_STATE !== 'speaking') return;
+  if (conversationHistory.length > 0) {
+    // Torna in ascolto diretto — niente countdown visivo subito
+    startListening();
+    // Avvia timer silenzio: se non arriva nessun onresult entro 10s → countdown visivo
+    resetSilenceTimer();
+  } else {
+    setState('idle');
+    updateMicBtn();
+  }
+}
+
+// Azzera e riavvia il timer silenzio — parte solo dopo risposta di ARIA
+function resetSilenceTimer() {
+  clearTimeout(silenceTimer);
+  silenceTimer = setTimeout(function() {
+    if (VOICE_STATE === 'listening') {
+      startCountdown();
+    }
+  }, 20000);
+}
+
+function clearSilenceTimer() {
+  clearTimeout(silenceTimer);
+  silenceTimer = null;
+}
+
+// ─── COUNTDOWN 10s (solo visivo — già in ascolto) ───
+function startCountdown() {
+  setState('countdown');
+  countdownSec = 10;
+  updateMicBtn();
+  setEmotion('ascoltando');
+
+  var ring = document.getElementById('countdownRing');
+  var arc  = document.getElementById('countdownArc');
+  var num  = document.getElementById('countdownNum');
+  if (ring) ring.style.display = 'flex';
+
+  function updateArc() {
+    var pct = countdownSec / 10;
+    var circumference = 163.4;
+    if (arc) arc.setAttribute('stroke-dashoffset', circumference * (1 - pct));
+    if (num) num.textContent = countdownSec;
+    var text = document.getElementById('stateLabelText');
+    if (text) text.textContent = '⏱ ' + countdownSec + 's — ancora qui?';
+  }
+  updateArc();
+
+  countdownInterval = setInterval(function() {
+    countdownSec--;
+    updateArc();
+    if (countdownSec <= 0) {
+      stopCountdown();
+      sayGoodbye();
+    }
+  }, 1000);
+  // Il microfono è già attivo da startListening — non ne serve uno nuovo
+}
+
+function stopCountdown() {
+  clearInterval(countdownInterval);
+  clearTimeout(countdownTimer);
+  countdownInterval = null;
+  countdownTimer = null;
+  var ring = document.getElementById('countdownRing');
+  if (ring) ring.style.display = 'none';
+}
+
+// ─── SALUTO FINALE → SLEEP ───
+function sayGoodbye() {
+  setState('speaking');
+  updateMicBtn();
+  stopListening();
+  var frasi = [
+    'Sono qui, toccami quando hai bisogno.',
+    'Mi fermo un attimo, svegliami quando vuoi!',
+    'A presto! Toccami per ricominciare.',
+    'Vado a riposare, ma sono qui se mi chiami.'
+  ];
+  var frase = frasi[Math.floor(Math.random() * frasi.length)];
+  showSubtitle('aria', frase);
+  setEmotion('empatica');
+
+  playShortTTS(frase, function() {
+    goSleeping();
+  });
+}
+
+function goSleeping() {
+  setState('idle');
+  updateMicBtn();
+  setEmotion('dormendo');
+  hideSubtitle();
+  var banner = document.getElementById('wakeBanner');
+  if (banner) banner.classList.add('visible');
+}
+
+function wakeUp() {
+  var banner = document.getElementById('wakeBanner');
+  if (banner) banner.classList.remove('visible');
+  setEmotion('felice');
+  setState('idle');
+  updateMicBtn();
+  // Saluto di risveglio
+  var frasi = [
+    'Eccomi! Di cosa vuoi parlare?',
+    'Sono sveglia! Come posso aiutarti?',
+    'Ci sono! Dimmi pure.',
+    'Buongiorno! Cosa c\'è?'
+  ];
+  var frase = frasi[Math.floor(Math.random() * frasi.length)];
+  showSubtitle('aria', frase);
+  playShortTTS(frase, function() {
+    hideSubtitle();
+    startListening();
+    resetSilenceTimer();
+  });
+}
+
+// ─── UI ───
+function updateMicBtn() {
+  var btn = document.getElementById('btnMic');
+  if (!btn) return;
+  if (VOICE_STATE === 'listening' || VOICE_STATE === 'countdown') {
+    btn.classList.add('recording');
+    btn.textContent = '⏹';
+  } else {
+    btn.classList.remove('recording');
+    btn.textContent = '🎤';
+  }
+}
+
+function stopMic() { stopListening(); setState('idle'); updateMicBtn(); }
+
+function startMediaRecorder() { startMediaRecorderFallback(); }
+
+// wake word rimosso — sostituito da tap-to-talk
+function toggleWakeWord() {}
+function setWakeIndicator() {}
+function updateWakeWordBtn() {
+  var btn = document.getElementById('btnWake');
+  if (btn) btn.style.display = 'none';
+}
+
+// ─── TTS BREVE ───
+async function playShortTTS(text, callback) {
+  if (!audioCtx || !API_KEY || PROVIDER !== 'gemini') {
+    if (callback) setTimeout(callback, 500);
+    return;
+  }
+  try {
+    var res = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + API_KEY,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: text }] }],
+          generationConfig: { response_modalities: ['AUDIO'],
+            speech_config: { voice_config: { prebuilt_voice_config: {
+              voice_name: selectedGeminiVoice || 'Kore' } } } } }) }
+    );
+    var data = await res.json();
+    if (data.error) throw new Error();
+    var wav = pcmToWav(base64ToArrayBuffer(data.candidates[0].content.parts[0].inlineData.data), 24000, 1, 16);
+    audioCtx.decodeAudioData(wav.slice(0), function(decoded) {
+      var src = audioCtx.createBufferSource();
+      src.buffer = decoded;
+      src.connect(audioCtx.destination);
+      src.onended = callback || function(){};
+      src.start(0);
+    }, function() { if (callback) setTimeout(callback, 500); });
+  } catch(e) { if (callback) setTimeout(callback, 500); }
+}
+
+// ═══════════════════════════════════════════════════
+// INPUT TESTO
+// ═══════════════════════════════════════════════════
+function sendText() {
+  var input = document.getElementById('textInput');
+  var msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  askAria(msg);
+}
+
+// ═══════════════════════════════════════════════════
+// LINGUA
+// ═══════════════════════════════════════════════════
+function toggleLang() {
+  LANG = LANG === 'it' ? 'en' : 'it';
+  document.getElementById('langToggle').textContent = LANG === 'it' ? '🌍 IT' : '🌍 EN';
+  document.getElementById('textInput').placeholder = LANG === 'it' ? 'Scrivi un messaggio...' : 'Type a message...';
+}
+</script>
+</body>
+</html>
