@@ -1754,9 +1754,13 @@ function toggleMic() {
 
 // ─── AVVIA ASCOLTO ───
 var listenAttempts = 0;
+var accumulatedText = '';
+var speechEndTimer = null;
 
 function startListening() {
   clearSilenceTimer();
+  clearTimeout(speechEndTimer);
+  accumulatedText = '';
   var banner = document.getElementById('wakeBanner');
   if (banner) banner.classList.remove('visible');
   setState('listening');
@@ -1776,15 +1780,10 @@ function startListeningAttempt() {
   commandRecognition.interimResults = true;
   commandRecognition.lang = 'it-IT';
 
-  var speechEndTimer = null;      // attende pausa naturale prima di inviare
-  var accumulatedText = '';       // accumula tutto il parlato della sessione
-  var isSpeechActive = false;     // l'utente sta parlando in questo momento
-
   commandRecognition.onresult = function(e) {
     clearSilenceTimer();
     clearTimeout(speechEndTimer);
 
-    // Raccoglie il testo finale accumulato
     var interim = '';
     var finalChunk = '';
     for (var i = e.resultIndex; i < e.results.length; i++) {
@@ -1795,9 +1794,7 @@ function startListeningAttempt() {
       }
     }
     if (finalChunk) accumulatedText += finalChunk + ' ';
-    isSpeechActive = true;
 
-    // Mostra sottotitolo live di quello che sta dicendo
     var display = (accumulatedText + interim).trim();
     if (display) showSubtitle('user', display);
 
@@ -1819,30 +1816,26 @@ function startListeningAttempt() {
   };
 
   commandRecognition.onend = function() {
-    clearTimeout(speechEndTimer);
+    // NON cancellare speechEndTimer — il testo accumulato deve ancora essere inviato
     if (VOICE_STATE !== 'listening' && VOICE_STATE !== 'countdown') return;
-    // Su Android continuous si ferma comunque — riavvia
     listenAttempts++;
     if (listenAttempts < 30) {
-      setTimeout(function() {
-        // Mantieni il testo accumulato nel nuovo tentativo
-        startListeningAttempt();
-      }, 150);
+      setTimeout(startListeningAttempt, 150);
     } else {
-      // Dopo 30 tentativi senza risultati → invia quel che c'è o vai idle
       var toSend = accumulatedText.trim();
-      if (toSend) { goThinking(toSend); }
+      if (toSend) { stopListening(); goThinking(toSend); }
       else { stopListening(); setState('idle'); updateMicBtn(); }
     }
   };
   try { commandRecognition.start(); }
-  catch(e) {
-    setTimeout(startListeningAttempt, 300);
-  }
+  catch(e) { setTimeout(startListeningAttempt, 300); }
 }
 
 function stopListening() {
   clearSilenceTimer();
+  clearTimeout(speechEndTimer);
+  speechEndTimer = null;
+  accumulatedText = '';
   if (commandRecognition) { try { commandRecognition.stop(); } catch(e){} commandRecognition = null; }
   if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch(e){} }
 }
