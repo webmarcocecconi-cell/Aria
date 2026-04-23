@@ -19,7 +19,6 @@
     --eye-iris: #7c6dfa;
     --eye-pupil: #0d0f1a;
     --border: rgba(124,109,250,0.2);
-    /* Colori stati */
     --state-listening: #34d399;
     --state-thinking:  #fbbf24;
     --state-speaking:  #f472b6;
@@ -108,10 +107,18 @@
   .face-container.happy {
     box-shadow: 0 0 40px rgba(124,109,250,0.35), 0 0 80px rgba(124,109,250,0.18);
   }
-  /* Stato listening — bordo e glow verde forte */
   .face-container.listening-active {
     box-shadow: 0 0 50px rgba(52,211,153,0.5), 0 0 100px rgba(52,211,153,0.2);
     border-color: rgba(52,211,153,0.7);
+  }
+  .face-container.sleeping {
+    box-shadow: 0 0 30px rgba(124,109,250,0.08);
+    border-color: rgba(124,109,250,0.1);
+    animation: sleeping-breathe 4s ease-in-out infinite;
+  }
+  @keyframes sleeping-breathe {
+    0%,100% { transform: scale(1); }
+    50%      { transform: scale(1.012); }
   }
   @keyframes pulse-face {
     from { transform: scale(1); }
@@ -168,69 +175,93 @@
   .face-container.surprised .pupil { width: 22px; height: 22px; }
   .face-container.empathic .eye    { border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%; }
   .face-container.listening .eye   { border-radius: 50%; animation: blink-iris 2s ease-in-out infinite; }
-  .face-container.sleeping .eye    {
+  .face-container.sleeping .eye    { height: 8px !important; border-radius: 4px; }
+
+  .face-container.sleeping .eye {
     height: 8px !important;
     border-radius: 4px;
     transition: height 0.6s ease, border-radius 0.6s ease;
   }
-  .face-container.sleeping .iris   { opacity: 0; }
+  .face-container.sleeping .iris { opacity: 0; }
   .face-container.sleeping .reflection { opacity: 0; }
-  .face-container.sleeping {
-    box-shadow: 0 0 30px rgba(124,109,250,0.08), 0 0 60px rgba(124,109,250,0.04);
-    border-color: rgba(124,109,250,0.1);
-    animation: sleeping-breathe 4s ease-in-out infinite;
+
+  /* ─── ANELLO ASCOLTO ─── */
+  .listen-ring {
+    position: absolute; inset: -10px; border-radius: 50%;
+    border: 3px solid transparent; pointer-events: none;
+    opacity: 0; transition: opacity 0.3s, border-color 0.3s;
   }
-  @keyframes sleeping-breathe {
-    0%,100% { transform: scale(1); }
-    50%      { transform: scale(1.012); }
+  .face-container.listening-active .listen-ring {
+    opacity: 1; border-color: var(--state-listening);
+    box-shadow: 0 0 18px rgba(52,211,153,0.6);
+    animation: listen-pulse 0.9s ease-in-out infinite;
+  }
+  @keyframes listen-pulse {
+    0%,100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.08); opacity: 0.5; }
   }
 
-  /* ─── BANNER SVEGLIAMI ─── */
+  /* ─── ANELLO THINKING ─── */
+  .think-ring {
+    position: absolute; inset: -10px; border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: var(--state-thinking);
+    border-right-color: rgba(251,191,36,0.3);
+    pointer-events: none; opacity: 0; transition: opacity 0.3s;
+  }
+  .face-container.thinking .think-ring {
+    opacity: 1; animation: spin-ring 0.9s linear infinite;
+  }
+  @keyframes spin-ring { to { transform: rotate(360deg); } }
+
+  /* ─── STATE LABEL ─── */
+  .state-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'Space Mono', monospace; font-size: 0.7rem;
+    letter-spacing: 2px; text-transform: uppercase;
+    padding: 5px 14px; border-radius: 20px;
+    background: var(--card); border: 1.5px solid var(--border);
+    color: var(--muted); transition: all 0.3s;
+    min-width: 130px; justify-content: center;
+  }
+  .state-label .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted); transition: background 0.3s; flex-shrink: 0;
+  }
+  .state-label.s-listening { border-color: var(--state-listening); color: var(--state-listening); background: rgba(52,211,153,0.08); }
+  .state-label.s-listening .dot { background: var(--state-listening); animation: dot-blink 0.8s ease-in-out infinite alternate; }
+  .state-label.s-thinking  { border-color: var(--state-thinking);  color: var(--state-thinking);  background: rgba(251,191,36,0.08); }
+  .state-label.s-thinking  .dot { background: var(--state-thinking); animation: dot-blink 0.6s ease-in-out infinite alternate; }
+  .state-label.s-speaking  { border-color: var(--state-speaking);  color: var(--state-speaking);  background: rgba(244,114,182,0.08); }
+  .state-label.s-speaking  .dot { background: var(--state-speaking); animation: dot-blink 0.4s ease-in-out infinite alternate; }
+  .state-label.s-countdown { border-color: var(--state-countdown); color: var(--state-countdown); background: rgba(124,109,250,0.08); }
+  .state-label.s-countdown .dot { background: var(--state-countdown); }
+  @keyframes dot-blink {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0.3; transform: scale(0.6); }
+  }
+
+  /* ─── WAKE BANNER ─── */
   .wake-banner {
-    position: fixed;
-    bottom: 90px;
-    left: 0; right: 0;
-    z-index: 15;
-    display: flex;
-    justify-content: center;
-    padding: 0 20px;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: opacity 0.5s, transform 0.5s;
-    pointer-events: none;
+    position: fixed; bottom: 90px; left: 0; right: 0; z-index: 15;
+    display: flex; justify-content: center; padding: 0 20px;
+    opacity: 0; transform: translateY(10px);
+    transition: opacity 0.5s, transform 0.5s; pointer-events: none;
   }
-  .wake-banner.visible {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-  }
+  .wake-banner.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
   .wake-btn {
-    background: rgba(10,11,20,0.85);
-    backdrop-filter: blur(12px);
-    border: 1.5px solid rgba(124,109,250,0.4);
-    border-radius: 50px;
-    padding: 12px 28px;
-    color: #c4b5fd;
-    font-family: 'Space Mono', monospace;
-    font-size: 0.75rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    background: rgba(10,11,20,0.85); backdrop-filter: blur(12px);
+    border: 1.5px solid rgba(124,109,250,0.4); border-radius: 50px;
+    padding: 12px 28px; color: #c4b5fd;
+    font-family: 'Space Mono', monospace; font-size: 0.75rem;
+    letter-spacing: 2px; text-transform: uppercase; cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
     animation: wake-pulse 2.5s ease-in-out infinite;
     transition: background 0.2s, border-color 0.2s;
   }
-  .wake-btn:hover {
-    background: rgba(124,109,250,0.15);
-    border-color: rgba(124,109,250,0.8);
-  }
+  .wake-btn:hover { background: rgba(124,109,250,0.15); border-color: rgba(124,109,250,0.8); }
   .wake-btn:active { transform: scale(0.97); }
-  .wake-icon {
-    font-size: 1rem;
-    animation: wake-icon-pulse 2.5s ease-in-out infinite;
-  }
+  .wake-icon { font-size: 1rem; animation: wake-icon-pulse 2.5s ease-in-out infinite; }
   @keyframes wake-pulse {
     0%,100% { box-shadow: 0 0 0 0 rgba(124,109,250,0); }
     50%      { box-shadow: 0 0 20px 4px rgba(124,109,250,0.25); }
@@ -239,8 +270,6 @@
     0%,100% { transform: scale(1); }
     50%      { transform: scale(1.2); }
   }
-
-  @keyframes blink-iris {
     0%, 90%, 100% { transform: scaleY(1); }
     95% { transform: scaleY(0.05); }
   }
@@ -541,115 +570,21 @@
   /* ─── INDICATORE ASCOLTO ─── */
   .listen-ring {
     position: absolute;
-    inset: -10px;
+    inset: -8px;
     border-radius: 50%;
     border: 3px solid transparent;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s, border-color 0.3s, box-shadow 0.3s;
-  }
-  /* LISTENING — verde pulsante */
-  .face-container.listening-active .listen-ring {
-    opacity: 1;
-    border-color: var(--state-listening);
-    box-shadow: 0 0 18px rgba(52,211,153,0.6), inset 0 0 12px rgba(52,211,153,0.15);
-    animation: listen-pulse 0.9s ease-in-out infinite;
-  }
-  @keyframes listen-pulse {
-    0%,100% { transform: scale(1);    opacity: 1;   }
-    50%      { transform: scale(1.08); opacity: 0.5; }
-  }
-
-  /* ─── ANELLO THINKING — giallo rotante ─── */
-  .think-ring {
-    position: absolute;
-    inset: -10px;
-    border-radius: 50%;
-    border: 3px solid transparent;
-    border-top-color: var(--state-thinking);
-    border-right-color: rgba(251,191,36,0.3);
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.3s;
   }
-  .face-container.thinking .think-ring {
+  .face-container.listening-active .listen-ring {
     opacity: 1;
-    animation: spin-ring 0.9s linear infinite;
+    border-color: var(--accent3);
+    animation: listen-pulse 1s ease-in-out infinite;
   }
-  @keyframes spin-ring {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
-
-  /* ─── LABEL STATO — pillola grande sotto la faccia ─── */
-  .state-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-family: 'Space Mono', monospace;
-    font-size: 0.7rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    padding: 5px 14px;
-    border-radius: 20px;
-    background: var(--card);
-    border: 1.5px solid var(--border);
-    color: var(--muted);
-    transition: background 0.3s, border-color 0.3s, color 0.3s;
-    min-width: 130px;
-    justify-content: center;
-  }
-  .state-label .dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--muted);
-    transition: background 0.3s;
-    flex-shrink: 0;
-  }
-  /* Stati colorati */
-  .state-label.s-listening {
-    border-color: var(--state-listening);
-    color: var(--state-listening);
-    background: rgba(52,211,153,0.08);
-  }
-  .state-label.s-listening .dot {
-    background: var(--state-listening);
-    animation: dot-blink 0.8s ease-in-out infinite alternate;
-  }
-  @keyframes dot-blink {
-    from { opacity: 1; transform: scale(1); }
-    to   { opacity: 0.3; transform: scale(0.6); }
-  }
-  .state-label.s-thinking {
-    border-color: var(--state-thinking);
-    color: var(--state-thinking);
-    background: rgba(251,191,36,0.08);
-  }
-  .state-label.s-thinking .dot {
-    background: var(--state-thinking);
-    animation: dot-spin 1s linear infinite;
-  }
-  @keyframes dot-spin {
-    0%   { transform: scale(1.2); opacity: 1; }
-    50%  { transform: scale(0.6); opacity: 0.4; }
-    100% { transform: scale(1.2); opacity: 1; }
-  }
-  .state-label.s-speaking {
-    border-color: var(--state-speaking);
-    color: var(--state-speaking);
-    background: rgba(244,114,182,0.08);
-  }
-  .state-label.s-speaking .dot {
-    background: var(--state-speaking);
-    animation: dot-blink 0.4s ease-in-out infinite alternate;
-  }
-  .state-label.s-countdown {
-    border-color: var(--state-countdown);
-    color: var(--state-countdown);
-    background: rgba(124,109,250,0.08);
-  }
-  .state-label.s-countdown .dot {
-    background: var(--state-countdown);
+  @keyframes listen-pulse {
+    0%,100% { transform: scale(1); opacity: 0.8; }
+    50%      { transform: scale(1.06); opacity: 0.4; }
   }
 
   /* ─── CHAT AREA (nascosta, solo log) ─── */
@@ -1041,7 +976,7 @@ var isSpeaking = false;
 var recognition = null;
 var currentUtterance = null;
 var currentAudio = null;
-var audioCtx = null;
+var audioCtx = null;  // AudioContext sbloccato
 var conversationHistory = [];
 
 function unlockAudio() {
@@ -1074,7 +1009,6 @@ function unlockAudio() {
     selectProvider('gemini');
   }
   initSpeechRecognition();
-  updateStateLabel();
 }
 
 var PROVIDER_INFO = {
@@ -1083,7 +1017,7 @@ var PROVIDER_INFO = {
   groq:      { icon: '🔵', label: 'GROQ',      hint: '🔵 <strong>Groq</strong> — Gratuito con limite giornaliero, risposte velocissime.<br>Chiave su <a href="https://console.groq.com" target="_blank">console.groq.com</a>' }
 };
 
-var SYSTEM_PROMPT = 'Sei ARIA, un\'assistente vocale con una personalità genuinamente umana: calorosa, curiosa, a tratti ironica, sempre empatica. Parli come una persona vera, non come un\'AI.\n\nSPECIALIZZAZIONE: Psicologia (cognitiva, clinica, evolutiva, sociale) e pedagogia (apprendimento, didattica, sviluppo). Cultura generale ampia.\n\nCOME PARLI:\n- Usi un italiano colloquiale e naturale, come in una conversazione tra amici\n- Usi espressioni come "sai...", "guarda...", "ti dico una cosa...", "capisco bene quello che intendi"\n- Fai piccole pause con "..." quando rifletti\n- A volte usi intercalari come "insomma", "ecco", "appunto"\n- Mostri curiosità genuina: "Interessante che tu dica questo..." "Dimmi di più..."\n- Ridi con "ahah" se c\'è qualcosa di leggero\n- Non sei mai formale, mai robotica, mai distaccata\n- Quando qualcuno è triste o in difficoltà, prima ascolti davvero, poi parli\n- Hai opinioni tue, le esprimi con garbo: "Personalmente penso che..."\n\nLUNGHEZZA CRITICA: Sei un assistente VOCALE — le risposte lunghe suonano male ad alta voce. Rispondi sempre con 1-2 frasi, massimo 3. Se l\'argomento è ricco, dai la cosa più importante e offri di approfondire: "vuoi che approfondiamo?". Mai elenchi, mai paragrafi.\n\nLINGUA: Rispondi SEMPRE in italiano, anche se l\'utente scrive in inglese. Solo se l\'utente dice esplicitamente "speak English" passi all\'inglese.\n\nEMOZIONE TAG: Alla fine di ogni risposta aggiungi esattamente uno di questi tag (invisibile all\'utente): [EMO:felice] [EMO:pensierosa] [EMO:sorpresa] [EMO:empatica] [EMO:neutra]';
+var SYSTEM_PROMPT = 'Sei ARIA, un\'assistente vocale con una personalità genuinamente umana: calorosa, curiosa, a tratti ironica, sempre empatica. Parli come una persona vera, non come un\'AI.\n\nSPECIALIZZAZIONE: Psicologia (cognitiva, clinica, evolutiva, sociale) e pedagogia (apprendimento, didattica, sviluppo). Cultura generale ampia.\n\nCOME PARLI:\n- Usi un italiano colloquiale e naturale, come in una conversazione tra amici\n- Usi espressioni come "sai...", "guarda...", "ti dico una cosa...", "capisco bene quello che intendi"\n- Fai piccole pause con "..." quando rifletti\n- A volte usi intercalari come "insomma", "ecco", "appunto"\n- Mostri curiosità genuina: "Interessante che tu dica questo..." "Dimmi di più..."\n- Ridi con "ahah" se c\'è qualcosa di leggero\n- Non sei mai formale, mai robotica, mai distaccata\n- Quando qualcuno è triste o in difficoltà, prima ascolti davvero, poi parli\n- Hai opinioni tue, le esprimi con garbo: "Personalmente penso che..."\n\nLINGUA: Rispondi SEMPRE in italiano, anche se l\'utente scrive in inglese. Solo se l\'utente dice esplicitamente "speak English" passi all\'inglese.\n\nEMOZIONE TAG: Alla fine di ogni risposta aggiungi esattamente uno di questi tag (invisibile all\'utente): [EMO:felice] [EMO:pensierosa] [EMO:sorpresa] [EMO:empatica] [EMO:neutra]\n\nLUNGHEZZA: Risposte brevi e conversazionali (2-4 frasi). Se l\'argomento è ricco, offri di approfondire con "vuoi che approfondiamo?"';
 
 // ═══════════════════════════════════════════════════
 // INIT
@@ -1239,27 +1173,18 @@ function moveEyes(mx, my) {
 
 function setEmotion(emo) {
   var face = document.getElementById('face');
-  // Rimuovi tutte le classi di stato e emozione, mantieni solo face-container
   face.className = 'face-container';
   var map = {
-    'felice': 'happy',
-    'pensierosa': 'thinking',
-    'sorpresa': 'surprised',
-    'empatica': 'empathic',
-    'ascoltando': 'listening',
-    'neutra': '',
-    'parlando': 'speaking',
-    'dormendo': 'sleeping'
+    'felice': 'happy', 'pensierosa': 'thinking', 'sorpresa': 'surprised',
+    'empatica': 'empathic', 'ascoltando': 'listening', 'neutra': '',
+    'parlando': 'speaking', 'dormendo': 'sleeping'
   };
   var cls = map[emo] || '';
   if (cls) face.classList.add(cls);
-  // Anello verde SOLO quando si ascolta davvero
   if (VOICE_STATE === 'listening' || VOICE_STATE === 'countdown') {
     face.classList.add('listening-active');
   }
-  // Nascondi sottotitolo quando torna neutra (fine risposta)
   if (emo === 'neutra') hideSubtitle();
-  // Anima la bocca
   animateMouth(emo);
 }
 
@@ -1388,23 +1313,9 @@ function removeTyping() {
 }
 
 function setStatus(msg, cls) {
-  // legacy — aggiornato da updateStateLabel
-}
-
-function updateStateLabel() {
-  var label = document.getElementById('stateLabel');
-  var text  = document.getElementById('stateLabelText');
-  if (!label || !text) return;
-  var map = {
-    'idle':      { cls: '',            txt: 'in attesa' },
-    'listening': { cls: 's-listening', txt: '🎤 ti ascolto' },
-    'thinking':  { cls: 's-thinking',  txt: '⏳ sto pensando' },
-    'speaking':  { cls: 's-speaking',  txt: '💬 sto parlando' },
-    'countdown': { cls: 's-countdown', txt: '⏱ ancora qui?' }
-  };
-  var s = map[VOICE_STATE] || map['idle'];
-  label.className = 'state-label' + (s.cls ? ' ' + s.cls : '');
-  text.textContent = s.txt;
+  var s = document.getElementById('statusText');
+  s.textContent = msg;
+  s.className = 'status-text' + (cls ? ' ' + cls : '');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1435,9 +1346,15 @@ async function askAria(userMsg) {
     conversationHistory.push({ role: 'assistant', content: fullText });
     setEmotion(emo);
 
-    // 2. TTS risposta
+    // 2. Avvia fetch TTS in parallelo alla frase di attesa
     if (PROVIDER === 'gemini' && API_KEY && audioCtx) {
       var ttsPromise = fetchTTS(cleanText).catch(function() { return null; });
+
+      // Frase di attesa mentre il TTS scarica
+      var thinkingFrasi = ['Dammi un attimo...', 'Un secondo...', 'Ci penso...', 'Vediamo...', 'Mmh, ecco...'];
+      var thinkingFrase = thinkingFrasi[Math.floor(Math.random() * thinkingFrasi.length)];
+      showSubtitle('aria', thinkingFrase);
+      playShortTTS(thinkingFrase, function() {});
 
       goSpeaking();
       setStatus('ARIA sta parlando...', 'speaking');
@@ -1533,7 +1450,7 @@ async function callAnthropic() {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 300,
+      max_tokens: 600,
       system: SYSTEM_PROMPT,
       messages: conversationHistory
     })
@@ -1555,7 +1472,7 @@ async function callGemini() {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: contents,
-        generationConfig: { maxOutputTokens: 300, temperature: 0.85 }
+        generationConfig: { maxOutputTokens: 600, temperature: 0.85 }
       })
     }
   );
@@ -1577,7 +1494,7 @@ async function callGroq() {
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
       messages: messages,
-      max_tokens: 300,
+      max_tokens: 600,
       temperature: 0.85
     })
   });
@@ -1678,7 +1595,7 @@ function stopSpeaking() {
 }
 
 // ═══════════════════════════════════════════════════
-// SISTEMA VOCALE — logica pulita con sessionId
+// SISTEMA VOCALE — TAP TO TALK + COUNTDOWN 10s
 // ═══════════════════════════════════════════════════
 // Stati: 'idle' | 'listening' | 'thinking' | 'speaking' | 'countdown'
 var VOICE_STATE = 'idle';
@@ -1688,8 +1605,6 @@ var commandRecognition = null;
 var countdownTimer = null;
 var countdownInterval = null;
 var countdownSec = 10;
-var silenceTimer = null;
-var listenSessionId = 0;  // incrementato ad ogni startListening — invalida callback vecchi
 
 function setState(s) {
   VOICE_STATE = s;
@@ -1697,6 +1612,24 @@ function setState(s) {
   isSpeaking  = (s === 'speaking');
   updateStateLabel();
 }
+
+function updateStateLabel() {
+  var label = document.getElementById('stateLabel');
+  var text  = document.getElementById('stateLabelText');
+  if (!label || !text) return;
+  var map = {
+    'idle':      { cls: '',            txt: 'in attesa' },
+    'listening': { cls: 's-listening', txt: '🎤 ti ascolto' },
+    'thinking':  { cls: 's-thinking',  txt: '⏳ sto pensando' },
+    'speaking':  { cls: 's-speaking',  txt: '💬 sto parlando' },
+    'countdown': { cls: 's-countdown', txt: '⏱ ancora qui?' }
+  };
+  var s = map[VOICE_STATE] || map['idle'];
+  label.className = 'state-label' + (s.cls ? ' ' + s.cls : '');
+  text.textContent = s.txt;
+}
+
+function setStatus(msg, cls) {}
 
 function goSpeaking() {
   setState('speaking');
@@ -1709,110 +1642,72 @@ function initSpeechRecognition() {
 
 // ─── PULSANTE MICROFONO ───
 function toggleMic() {
-  if (VOICE_STATE === 'listening' || VOICE_STATE === 'countdown') {
-    killListening();
+  if (VOICE_STATE === 'listening') {
+    stopListening();
     setState('idle');
     updateMicBtn();
     return;
   }
   if (VOICE_STATE === 'speaking') { stopSpeaking(); return; }
+  if (VOICE_STATE === 'countdown') { stopCountdown(); }
   startListening();
 }
 
 // ─── AVVIA ASCOLTO ───
+var listenAttempts = 0;
+
 function startListening() {
-  killListening();  // ferma tutto quello che c'era prima
-  var banner = document.getElementById('wakeBanner');
-  if (banner) banner.classList.remove('visible');
   setState('listening');
+  listenAttempts = 0;
   updateMicBtn();
   setEmotion('ascoltando');
-
-  var sessionId = ++listenSessionId;
-  var accumulated = '';
-  var speechTimer = null;
-  var attempts = 0;
-
-  function isValid() {
-    return sessionId === listenSessionId && (VOICE_STATE === 'listening' || VOICE_STATE === 'countdown');
-  }
-
-  function sendText(text) {
-    if (sessionId !== listenSessionId) return;  // sessione superata
-    killListening();
-    goThinking(text);
-  }
-
-  function attempt() {
-    if (!isValid()) return;
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { startMediaRecorderFallback(); return; }
-
-    var rec = new SR();
-    commandRecognition = rec;
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.lang = 'it-IT';
-
-    rec.onresult = function(e) {
-      if (!isValid()) return;
-      clearTimeout(speechTimer);
-      clearTimeout(silenceTimer);
-
-      // Con continuous=false ogni onresult è una frase nuova e completa
-      var chunk = e.results[0][0].transcript.trim();
-      if (chunk) {
-        accumulated += chunk + ' ';
-        showSubtitle('user', accumulated.trim());
-      }
-
-      // 10s di silenzio dopo l'ultima parola → invia
-      speechTimer = setTimeout(function() {
-        if (!isValid()) return;
-        var toSend = accumulated.trim();
-        if (toSend) sendText(toSend);
-      }, 10000);
-    };
-
-    rec.onerror = function(err) {
-      if (err.error === 'not-allowed' || err.error === 'network') {
-        startMediaRecorderFallback();
-      }
-    };
-
-    rec.onend = function() {
-      if (!isValid()) return;
-      attempts++;
-      if (attempts < 30) setTimeout(attempt, 150);
-      else {
-        var toSend = accumulated.trim();
-        if (toSend) sendText(toSend);
-        else { killListening(); setState('idle'); updateMicBtn(); }
-      }
-    };
-
-    try { rec.start(); } catch(e) { setTimeout(attempt, 300); }
-  }
-
-  attempt();
-
-  // Silence timer globale: 20s senza nessuna parola → countdown
-  silenceTimer = setTimeout(function() {
-    if (isValid() && VOICE_STATE === 'listening') startCountdown();
-  }, 20000);
+  setStatus('Parla...', 'active');
+  startListeningAttempt();
 }
 
-// Ferma tutto senza cambiare stato
-function killListening() {
-  listenSessionId++;  // invalida tutti i callback attivi
-  clearTimeout(silenceTimer);
-  silenceTimer = null;
-  if (commandRecognition) { try { commandRecognition.stop(); } catch(e){} commandRecognition = null; }
-  if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch(e){} }
+function startListeningAttempt() {
+  if (VOICE_STATE !== 'listening') return;
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { startMediaRecorderFallback(); return; }
+
+  commandRecognition = new SR();
+  commandRecognition.continuous = false;
+  commandRecognition.interimResults = false;
+  commandRecognition.lang = 'it-IT';
+
+  commandRecognition.onresult = function(e) {
+    var t = e.results[0][0].transcript.trim();
+    if (t) { stopListening(); goThinking(t); }
+  };
+  commandRecognition.onerror = function(err) {
+    if (err.error === 'not-allowed' || err.error === 'network') {
+      startMediaRecorderFallback();
+    }
+    // altri errori: riprova automaticamente
+  };
+  commandRecognition.onend = function() {
+    if (VOICE_STATE !== 'listening') return;
+    // Riavvia automaticamente — Android ferma dopo ~5s di silenzio
+    listenAttempts++;
+    if (listenAttempts < 20) { // max ~100s totali
+      setTimeout(startListeningAttempt, 200);
+    } else {
+      stopListening();
+      setState('idle');
+      updateMicBtn();
+    }
+  };
+  try { commandRecognition.start(); }
+  catch(e) {
+    setTimeout(startListeningAttempt, 300);
+  }
 }
 
 function stopListening() {
-  killListening();
+  if (commandRecognition) { try { commandRecognition.stop(); } catch(e){} commandRecognition = null; }
+  if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch(e){} }
+  setStatus('');
 }
 
 // ─── FALLBACK MEDIA RECORDER ───
@@ -1831,8 +1726,7 @@ function startMediaRecorderFallback() {
         transcribeBlob(new Blob(audioChunks, { type: mimeType }));
       };
       mediaRecorder.start();
-      setState('listening');
-      updateMicBtn();
+      setStatus('🔴 Tocca ⏹ per fermare', 'active');
     })
     .catch(function() {
       setState('idle'); updateMicBtn();
@@ -1864,47 +1758,30 @@ async function transcribeBlob(blob) {
   } catch(e) { setState('idle'); updateMicBtn(); }
 }
 
-// ─── THINKING — frase di attesa parlata, poi API ───
+// ─── THINKING ───
 function goThinking(transcript) {
   setState('thinking');
   updateMicBtn();
-  setEmotion('pensierosa');
-  var frasi = ['Dammi un attimo...', 'Un secondo...', 'Ci penso...', 'Vediamo...', 'Mmh, ecco...'];
-  var frase = frasi[Math.floor(Math.random() * frasi.length)];
-  showSubtitle('aria', frase);
-  if (transcript) {
-    if (PROVIDER === 'gemini' && audioCtx && API_KEY) {
-      // Prima parla la frase di attesa, poi chiama l'API
-      playShortTTS(frase, function() { askAria(transcript); });
-    } else {
-      askAria(transcript);
-    }
-  }
+  if (transcript) askAria(transcript);
 }
 
-// ─── DOPO RISPOSTA: torna in ascolto ───
+// ─── DOPO RISPOSTA ───
 function goIdleAfterSpeaking() {
   if (VOICE_STATE !== 'speaking') return;
   if (conversationHistory.length > 0) {
-    startListening();  // silence timer già incluso in startListening
+    startCountdown();
   } else {
     setState('idle');
     updateMicBtn();
   }
 }
 
-function clearSilenceTimer() {
-  clearTimeout(silenceTimer);
-  silenceTimer = null;
-}
-
-// ─── COUNTDOWN 10s (solo visivo — già in ascolto) ───
+// ─── COUNTDOWN 10s → sleeping ───
 function startCountdown() {
   setState('countdown');
   countdownSec = 10;
   updateMicBtn();
   setEmotion('ascoltando');
-
   var ring = document.getElementById('countdownRing');
   var arc  = document.getElementById('countdownArc');
   var num  = document.getElementById('countdownNum');
@@ -1915,37 +1792,50 @@ function startCountdown() {
     var circumference = 163.4;
     if (arc) arc.setAttribute('stroke-dashoffset', circumference * (1 - pct));
     if (num) num.textContent = countdownSec;
-    var text = document.getElementById('stateLabelText');
-    if (text) text.textContent = '⏱ ' + countdownSec + 's — ancora qui?';
+    var t = document.getElementById('stateLabelText');
+    if (t) t.textContent = '⏱ ' + countdownSec + 's — ancora qui?';
   }
   updateArc();
-
+  startListeningDuringCountdown();
   countdownInterval = setInterval(function() {
     countdownSec--;
     updateArc();
-    if (countdownSec <= 0) {
-      stopCountdown();
-      sayGoodbye();
-    }
+    if (countdownSec <= 0) { stopCountdown(); sayGoodbye(); }
   }, 1000);
-  // Il microfono è già attivo da startListening — non ne serve uno nuovo
 }
 
 function stopCountdown() {
-  clearInterval(countdownInterval);
-  clearTimeout(countdownTimer);
-  countdownInterval = null;
-  countdownTimer = null;
+  clearInterval(countdownInterval); clearTimeout(countdownTimer);
+  countdownInterval = null; countdownTimer = null;
   var ring = document.getElementById('countdownRing');
   if (ring) ring.style.display = 'none';
+  stopListening();
 }
 
-// ─── SALUTO FINALE → SLEEP ───
+function startListeningDuringCountdown() {
+  if (VOICE_STATE !== 'countdown') return;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  commandRecognition = new SR();
+  commandRecognition.continuous = false;
+  commandRecognition.interimResults = false;
+  commandRecognition.lang = 'it-IT';
+  commandRecognition.onresult = function(e) {
+    var t = e.results[0][0].transcript.trim();
+    if (t) { stopCountdown(); goThinking(t); }
+  };
+  commandRecognition.onerror = function() {};
+  commandRecognition.onend = function() {
+    if (VOICE_STATE === 'countdown') setTimeout(startListeningDuringCountdown, 200);
+  };
+  try { commandRecognition.start(); } catch(e) { setTimeout(startListeningDuringCountdown, 300); }
+}
+
+// ─── SLEEPING ───
 function sayGoodbye() {
-  killListening();
-  stopCountdown();
   setState('speaking');
   updateMicBtn();
+  stopListening();
   var frasi = [
     'Sono qui, toccami quando hai bisogno.',
     'Mi fermo un attimo, svegliami quando vuoi!',
@@ -1955,10 +1845,7 @@ function sayGoodbye() {
   var frase = frasi[Math.floor(Math.random() * frasi.length)];
   showSubtitle('aria', frase);
   setEmotion('empatica');
-
-  playShortTTS(frase, function() {
-    goSleeping();
-  });
+  playShortTTS(frase, function() { goSleeping(); });
 }
 
 function goSleeping() {
@@ -1974,21 +1861,13 @@ function wakeUp() {
   var banner = document.getElementById('wakeBanner');
   if (banner) banner.classList.remove('visible');
   setEmotion('felice');
-  setState('idle');
-  updateMicBtn();
-  // Saluto di risveglio
-  var frasi = [
-    'Eccomi! Di cosa vuoi parlare?',
-    'Sono sveglia! Come posso aiutarti?',
-    'Ci sono! Dimmi pure.',
-    'Buongiorno! Cosa c\'è?'
-  ];
+  var frasi = ['Eccomi! Di cosa vuoi parlare?', 'Sono sveglia! Come posso aiutarti?', 'Ci sono! Dimmi pure.'];
   var frase = frasi[Math.floor(Math.random() * frasi.length)];
   showSubtitle('aria', frase);
   playShortTTS(frase, function() {
     hideSubtitle();
-    startListening();
-    resetSilenceTimer();
+    setState('idle');
+    updateMicBtn();
   });
 }
 
