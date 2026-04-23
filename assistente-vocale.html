@@ -1711,7 +1711,7 @@ function stopSpeaking() {
 }
 
 // ═══════════════════════════════════════════════════
-// SISTEMA VOCALE — TAP TO TALK + COUNTDOWN 10s
+// SISTEMA VOCALE — logica pulita con sessionId
 // ═══════════════════════════════════════════════════
 // Stati: 'idle' | 'listening' | 'thinking' | 'speaking' | 'countdown'
 var VOICE_STATE = 'idle';
@@ -1721,6 +1721,8 @@ var commandRecognition = null;
 var countdownTimer = null;
 var countdownInterval = null;
 var countdownSec = 10;
+var silenceTimer = null;
+var listenSessionId = 0;  // incrementato ad ogni startListening — invalida callback vecchi
 
 function setState(s) {
   VOICE_STATE = s;
@@ -1741,9 +1743,7 @@ function initSpeechRecognition() {
 // ─── PULSANTE MICROFONO ───
 function toggleMic() {
   if (VOICE_STATE === 'listening' || VOICE_STATE === 'countdown') {
-    clearSilenceTimer();
-    stopCountdown();
-    stopListening();
+    killListening();
     setState('idle');
     updateMicBtn();
     return;
@@ -1753,91 +1753,100 @@ function toggleMic() {
 }
 
 // ─── AVVIA ASCOLTO ───
-var listenAttempts = 0;
-var accumulatedText = '';
-var speechEndTimer = null;
-
 function startListening() {
-  clearSilenceTimer();
-  clearTimeout(speechEndTimer);
-  accumulatedText = '';
+  killListening();  // ferma tutto quello che c'era prima
   var banner = document.getElementById('wakeBanner');
   if (banner) banner.classList.remove('visible');
   setState('listening');
-  listenAttempts = 0;
   updateMicBtn();
   setEmotion('ascoltando');
-  startListeningAttempt();
+
+  var sessionId = ++listenSessionId;
+  var accumulated = '';
+  var speechTimer = null;
+  var attempts = 0;
+
+  function isValid() {
+    return sessionId === listenSessionId && (VOICE_STATE === 'listening' || VOICE_STATE === 'countdown');
+  }
+
+  function sendText(text) {
+    if (sessionId !== listenSessionId) return;  // sessione superata
+    killListening();
+    goThinking(text);
+  }
+
+  function attempt() {
+    if (!isValid()) return;
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { startMediaRecorderFallback(); return; }
+
+    var rec = new SR();
+    commandRecognition = rec;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'it-IT';
+
+    rec.onresult = function(e) {
+      if (!isValid()) return;
+      clearTimeout(speechTimer);
+      clearTimeout(silenceTimer);
+
+      var interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) accumulated += e.results[i][0].transcript + ' ';
+        else interim += e.results[i][0].transcript;
+      }
+      var display = (accumulated + interim).trim();
+      if (display) showSubtitle('user', display);
+
+      // 10s di silenzio dopo l'ultima parola → invia
+      speechTimer = setTimeout(function() {
+        if (!isValid()) return;
+        var toSend = accumulated.trim() || interim.trim();
+        if (toSend) sendText(toSend);
+      }, 10000);
+    };
+
+    rec.onerror = function(err) {
+      if (err.error === 'not-allowed' || err.error === 'network') {
+        startMediaRecorderFallback();
+      }
+    };
+
+    rec.onend = function() {
+      if (!isValid()) return;
+      attempts++;
+      if (attempts < 30) setTimeout(attempt, 150);
+      else {
+        var toSend = accumulated.trim();
+        if (toSend) sendText(toSend);
+        else { killListening(); setState('idle'); updateMicBtn(); }
+      }
+    };
+
+    try { rec.start(); } catch(e) { setTimeout(attempt, 300); }
+  }
+
+  attempt();
+
+  // Silence timer globale: 20s senza nessuna parola → countdown
+  silenceTimer = setTimeout(function() {
+    if (isValid() && VOICE_STATE === 'listening') startCountdown();
+  }, 20000);
 }
-function startListeningAttempt() {
-  if (VOICE_STATE !== 'listening' && VOICE_STATE !== 'countdown') return;
 
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { startMediaRecorderFallback(); return; }
-
-  commandRecognition = new SR();
-  commandRecognition.continuous = true;
-  commandRecognition.interimResults = true;
-  commandRecognition.lang = 'it-IT';
-
-  commandRecognition.onresult = function(e) {
-    clearSilenceTimer();
-    clearTimeout(speechEndTimer);
-
-    var interim = '';
-    var finalChunk = '';
-    for (var i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) {
-        finalChunk += e.results[i][0].transcript;
-      } else {
-        interim += e.results[i][0].transcript;
-      }
-    }
-    if (finalChunk) accumulatedText += finalChunk + ' ';
-
-    var display = (accumulatedText + interim).trim();
-    if (display) showSubtitle('user', display);
-
-    // Aspetta 10s di silenzio dopo l'ultima parola prima di inviare
-    speechEndTimer = setTimeout(function() {
-      var toSend = accumulatedText.trim();
-      if (!toSend && interim.trim()) toSend = interim.trim();
-      if (toSend) {
-        stopListening();
-        goThinking(toSend);
-      }
-    }, 10000);
-  };
-
-  commandRecognition.onerror = function(err) {
-    if (err.error === 'not-allowed' || err.error === 'network') {
-      startMediaRecorderFallback();
-    }
-  };
-
-  commandRecognition.onend = function() {
-    // NON cancellare speechEndTimer — il testo accumulato deve ancora essere inviato
-    if (VOICE_STATE !== 'listening' && VOICE_STATE !== 'countdown') return;
-    listenAttempts++;
-    if (listenAttempts < 30) {
-      setTimeout(startListeningAttempt, 150);
-    } else {
-      var toSend = accumulatedText.trim();
-      if (toSend) { stopListening(); goThinking(toSend); }
-      else { stopListening(); setState('idle'); updateMicBtn(); }
-    }
-  };
-  try { commandRecognition.start(); }
-  catch(e) { setTimeout(startListeningAttempt, 300); }
+// Ferma tutto senza cambiare stato
+function killListening() {
+  listenSessionId++;  // invalida tutti i callback attivi
+  clearTimeout(silenceTimer);
+  silenceTimer = null;
+  if (commandRecognition) { try { commandRecognition.stop(); } catch(e){} commandRecognition = null; }
+  if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch(e){} }
 }
 
 function stopListening() {
-  clearSilenceTimer();
-  clearTimeout(speechEndTimer);
-  speechEndTimer = null;
-  accumulatedText = '';
-  if (commandRecognition) { try { commandRecognition.stop(); } catch(e){} commandRecognition = null; }
-  if (mediaRecorder && mediaRecorder.state === 'recording') { try { mediaRecorder.stop(); } catch(e){} }
+  killListening();
 }
 
 // ─── FALLBACK MEDIA RECORDER ───
@@ -1906,30 +1915,15 @@ function goThinking(transcript) {
   if (transcript) askAria(transcript);
 }
 
-// ─── DOPO RISPOSTA: torna in ascolto, silenzio 10s → countdown ───
-var silenceTimer = null;
-
+// ─── DOPO RISPOSTA: torna in ascolto ───
 function goIdleAfterSpeaking() {
   if (VOICE_STATE !== 'speaking') return;
   if (conversationHistory.length > 0) {
-    // Torna in ascolto diretto — niente countdown visivo subito
-    startListening();
-    // Avvia timer silenzio: se non arriva nessun onresult entro 10s → countdown visivo
-    resetSilenceTimer();
+    startListening();  // silence timer già incluso in startListening
   } else {
     setState('idle');
     updateMicBtn();
   }
-}
-
-// Azzera e riavvia il timer silenzio — parte solo dopo risposta di ARIA
-function resetSilenceTimer() {
-  clearTimeout(silenceTimer);
-  silenceTimer = setTimeout(function() {
-    if (VOICE_STATE === 'listening') {
-      startCountdown();
-    }
-  }, 20000);
 }
 
 function clearSilenceTimer() {
@@ -1981,9 +1975,10 @@ function stopCountdown() {
 
 // ─── SALUTO FINALE → SLEEP ───
 function sayGoodbye() {
+  killListening();
+  stopCountdown();
   setState('speaking');
   updateMicBtn();
-  stopListening();
   var frasi = [
     'Sono qui, toccami quando hai bisogno.',
     'Mi fermo un attimo, svegliami quando vuoi!',
