@@ -1044,37 +1044,6 @@ var currentAudio = null;
 var audioCtx = null;
 var conversationHistory = [];
 
-// ─── CACHE FRASI DI ATTESA ───
-var THINKING_FRASI = ['Dammi un attimo...', 'Un secondo...', 'Ci penso...', 'Vediamo...', 'Mmh, ecco...'];
-var thinkingAudioCache = {};   // { testo: AudioBuffer }
-var thinkingCacheReady = false;
-
-async function preCacheThinkingAudio() {
-  if (!API_KEY || PROVIDER !== 'gemini' || !audioCtx) return;
-  for (var i = 0; i < THINKING_FRASI.length; i++) {
-    var frase = THINKING_FRASI[i];
-    try {
-      var wav = await fetchTTS(frase);
-      if (!wav) continue;
-      audioCtx.decodeAudioData(wav.slice(0), function(frase) {
-        return function(decoded) { thinkingAudioCache[frase] = decoded; };
-      }(frase));
-    } catch(e) {}
-    await new Promise(function(r) { setTimeout(r, 300); }); // evita rate limit
-  }
-  thinkingCacheReady = true;
-}
-
-function playCachedThinking(frase) {
-  var decoded = thinkingAudioCache[frase];
-  if (!decoded || !audioCtx) return false;
-  var src = audioCtx.createBufferSource();
-  src.buffer = decoded;
-  src.connect(audioCtx.destination);
-  src.start(0);
-  return true;
-}
-
 function unlockAudio() {
   // Crea e sblocca AudioContext con interazione utente
   try {
@@ -1101,8 +1070,6 @@ function unlockAudio() {
     addBubble('aria', 'Ciao! Sono ARIA 💜 Sono felice di conoscerti! Di cosa vuoi che parliamo?');
     setEmotion('felice');
     speak('Ciao! Sono ARIA, sono qui per te. Di cosa vuoi parlare?', 'felice');
-    // Pre-cache frasi di attesa in background (non blocca)
-    setTimeout(preCacheThinkingAudio, 2000);
   } else {
     selectProvider('gemini');
   }
@@ -1468,7 +1435,7 @@ async function askAria(userMsg) {
     conversationHistory.push({ role: 'assistant', content: fullText });
     setEmotion(emo);
 
-    // 2. Avvia fetch TTS in parallelo — frase di attesa già riprodotta in goThinking
+    // 2. TTS risposta
     if (PROVIDER === 'gemini' && API_KEY && audioCtx) {
       var ttsPromise = fetchTTS(cleanText).catch(function() { return null; });
 
@@ -1898,21 +1865,22 @@ async function transcribeBlob(blob) {
   } catch(e) { setState('idle'); updateMicBtn(); }
 }
 
-// ─── THINKING — riproduce frase di attesa immediatamente ───
+// ─── THINKING — frase di attesa parlata, poi API ───
 function goThinking(transcript) {
   setState('thinking');
   updateMicBtn();
   setEmotion('pensierosa');
-  // Riproduci frase di attesa dalla cache (istantaneo) o via TTS (fallback)
-  if (PROVIDER === 'gemini' && audioCtx) {
-    var frase = THINKING_FRASI[Math.floor(Math.random() * THINKING_FRASI.length)];
-    showSubtitle('aria', frase);
-    if (!playCachedThinking(frase)) {
-      // Cache non ancora pronta — usa playShortTTS normale
-      playShortTTS(frase, function() {});
+  var frasi = ['Dammi un attimo...', 'Un secondo...', 'Ci penso...', 'Vediamo...', 'Mmh, ecco...'];
+  var frase = frasi[Math.floor(Math.random() * frasi.length)];
+  showSubtitle('aria', frase);
+  if (transcript) {
+    if (PROVIDER === 'gemini' && audioCtx && API_KEY) {
+      // Prima parla la frase di attesa, poi chiama l'API
+      playShortTTS(frase, function() { askAria(transcript); });
+    } else {
+      askAria(transcript);
     }
   }
-  if (transcript) askAria(transcript);
 }
 
 // ─── DOPO RISPOSTA: torna in ascolto ───
