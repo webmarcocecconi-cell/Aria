@@ -1750,8 +1750,8 @@ function startListening() {
 
     var rec = new SR();
     commandRecognition = rec;
-    rec.continuous = true;
-    rec.interimResults = true;
+    rec.continuous = false;
+    rec.interimResults = false;
     rec.lang = 'it-IT';
 
     rec.onresult = function(e) {
@@ -1759,19 +1759,12 @@ function startListening() {
       clearTimeout(speechTimer);
       clearTimeout(silenceTimer);
 
-      for (var i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          accumulated += e.results[i][0].transcript + ' ';
-        }
+      // Con continuous=false ogni onresult è una frase nuova e completa
+      var chunk = e.results[0][0].transcript.trim();
+      if (chunk) {
+        accumulated += chunk + ' ';
+        showSubtitle('user', accumulated.trim());
       }
-
-      // Mostra testo accumulato + eventuale interim corrente
-      var interim = '';
-      for (var j = e.resultIndex; j < e.results.length; j++) {
-        if (!e.results[j].isFinal) interim += e.results[j][0].transcript;
-      }
-      var display = (accumulated + interim).trim();
-      if (display) showSubtitle('user', display);
 
       // 10s di silenzio dopo l'ultima parola → invia
       speechTimer = setTimeout(function() {
