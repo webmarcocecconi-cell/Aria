@@ -961,9 +961,10 @@
     <div class="modal-title">⚙️ CONFIGURA ARIA</div>
     <div class="modal-sub">Inserisci le tue chiavi API — salvate in locale, mai inviate a nessuno</div>
 
-    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent3);letter-spacing:1px;margin-bottom:8px;">🔵 GROQ — testo</div>
-    <input type="password" class="modal-input" id="modalGroqKey" placeholder="gsk_..." />
-    <div class="modal-hint">Chiave gratuita su <a href="https://console.groq.com" target="_blank">console.groq.com</a></div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent3);letter-spacing:1px;margin-bottom:8px;">🔵 GROQ — testo (fino a 2 chiavi)</div>
+    <input type="password" class="modal-input" id="modalGroqKey" placeholder="Chiave 1 — gsk_..." style="margin-bottom:6px;" />
+    <input type="password" class="modal-input" id="modalGroqKey2" placeholder="Chiave 2 — gsk_... (opzionale)" />
+    <div class="modal-hint">Chiavi gratuite su <a href="https://console.groq.com" target="_blank">console.groq.com</a></div>
 
     <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent);letter-spacing:1px;margin-bottom:8px;margin-top:12px;">🟢 GEMINI TTS — voce (fino a 3 chiavi)</div>
     <input type="password" class="modal-input" id="modalGeminiKey1" placeholder="Chiave 1 — AIza..." style="margin-bottom:6px;" />
@@ -1056,6 +1057,14 @@
   <button class="btn btn-stop" id="btnStop" onclick="stopSpeaking()">⏹</button>
 </div>
 
+<!-- BANNER SALVA E CHIUDI -->
+<div class="wake-banner" id="saveBanner">
+  <button class="wake-btn" style="border-color:rgba(251,191,36,0.5);color:#fbbf24;" onclick="saveAndClose()">
+    <span class="wake-icon">💾</span>
+    <span>Salva la memoria prima di uscire</span>
+  </button>
+</div>
+
 <!-- BANNER SVEGLIAMI -->
 <div class="wake-banner" id="wakeBanner">
   <button class="wake-btn" onclick="wakeUp()">
@@ -1080,11 +1089,19 @@
 // ═══════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════
-var GROQ_KEY = localStorage.getItem('aria_groq_key') || '';
-var GEMINI_KEY = localStorage.getItem('aria_gemini_key') || ''; // non più usato per TTS
+// Chiavi Groq con rotazione
+var GROQ_KEYS = (localStorage.getItem('aria_groq_keys') || localStorage.getItem('aria_groq_key') || '').split(',').filter(function(k){ return k.trim(); });
+var GROQ_KEY = GROQ_KEYS[0] || '';
+var groqKeyIndex = 0;
+var GEMINI_KEY = ''; // legacy
 // Chiavi Gemini TTS — caricate da localStorage
 var GEMINI_TTS_KEYS = (localStorage.getItem('aria_gemini_tts_keys') || '').split(',').filter(function(k){ return k.trim(); });
 var API_KEY = '';  // legacy, non usato
+
+// ─── MEMORIA CIRCOLARE ───
+var MEMORY_MAX = 50;
+var ariaMemory = JSON.parse(localStorage.getItem('aria_memory') || '[]');
+var memoryExtracted = false; // evita doppia estrazione per sessione
 var PROVIDER = 'groq';
 var LANG = 'it';
 var selectedVoiceName = localStorage.getItem('aria_voice') || '';
@@ -1104,6 +1121,84 @@ var userProfile = {
   gender: localStorage.getItem('aria_gender') || '',
   done: localStorage.getItem('aria_onboarding_done') === 'true'
 };
+
+
+// ─── GESTIONE MEMORIA ───
+function saveMemory() {
+  localStorage.setItem('aria_memory', JSON.stringify(ariaMemory));
+}
+
+function addMemoryFact(text, weight) {
+  var now = new Date().toISOString();
+  // Controlla se il fatto esiste già (evita duplicati simili)
+  var exists = ariaMemory.some(function(m) {
+    return m.text.toLowerCase().indexOf(text.toLowerCase().substring(0, 20)) >= 0;
+  });
+  if (exists) return;
+
+  if (ariaMemory.length >= MEMORY_MAX) {
+    // Trova il fatto con peso più basso e data più vecchia
+    var minIdx = 0;
+    var minScore = ariaMemory[0].weight * 1000 + new Date(ariaMemory[0].date).getTime() / 1e12;
+    for (var i = 1; i < ariaMemory.length; i++) {
+      var score = ariaMemory[i].weight * 1000 + new Date(ariaMemory[i].date).getTime() / 1e12;
+      if (score < minScore) { minScore = score; minIdx = i; }
+    }
+    ariaMemory[minIdx] = { text: text, weight: weight, date: now };
+  } else {
+    ariaMemory.push({ text: text, weight: weight, date: now });
+  }
+  saveMemory();
+}
+
+function getMemoryContext() {
+  if (!ariaMemory.length) return '';
+  // Ordina per peso desc, prendi i più importanti (max 20)
+  var sorted = ariaMemory.slice().sort(function(a, b) { return b.weight - a.weight; });
+  var top = sorted.slice(0, 20);
+  return 'COSA RICORDO DI TE (da conversazioni precedenti):\n' +
+    top.map(function(m) { return '- ' + m.text; }).join('\n') + '\n\n' +
+    'Usa questi ricordi in modo naturale. Quando usi un ricordo di sessioni precedenti puoi dire "ricordo che mi hai detto..." in modo spontaneo.\n\n';
+}
+
+async function extractMemoryFromSession() {
+  if (memoryExtracted || conversationHistory.length < 2) return;
+  memoryExtracted = true;
+  if (!GROQ_KEYS.length) return;
+
+  var transcript = conversationHistory.map(function(m) {
+    return (m.role === 'user' ? 'Utente: ' : 'ARIA: ') + m.content;
+  }).join('\n');
+
+  var prompt = 'Analizza questa conversazione ed estrai i fatti importanti da ricordare sulla persona.' +
+    ' Per ogni fatto indica il peso: 3=molto importante (nomi familiari, lavoro, salute), 2=medio (eventi significativi, preferenze importanti), 1=basso (preferenze minori, dettagli contestuali).' +
+    ' Rispondi SOLO con un array JSON nel formato: [{"text":"fatto da ricordare","weight":3}]' +
+    ' Massimo 5 fatti. Se non ci sono fatti rilevanti rispondi con [].' +
+    '\n\nCONVERSAZIONE:\n' + transcript;
+
+  try {
+    var key = GROQ_KEYS[groqKeyIndex % GROQ_KEYS.length];
+    var res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 300, temperature: 0.3
+      })
+    });
+    var data = await res.json();
+    if (data.error) return;
+    var text = data.choices[0].message.content.trim();
+    // Estrai JSON dalla risposta
+    var match = text.match(/\[[\s\S]*\]/);
+    if (!match) return;
+    var facts = JSON.parse(match[0]);
+    facts.forEach(function(f) {
+      if (f.text && f.weight) addMemoryFact(f.text, f.weight);
+    });
+  } catch(e) { console.log('Memoria: errore estrazione', e); }
+}
 
 function getAgeProfile() {
   var age = userProfile.age;
@@ -1128,7 +1223,7 @@ function buildSystemPrompt() {
     anziano:     'Parli con una persona anziana. Sei rispettosa, chiara, parli con calma senza fretta. Eviti termini tecnici e gergo giovanile. Sei paziente e affettuosa.'
   };
 
-  var prompt = "Sei ARIA, un'amica vera con una personalità genuinamente umana: calorosa, curiosa, a tratti ironica, sempre empatica. Parli come una persona vera, non come un'AI. Hai una cultura ampia e profonda ma non la citi mai esplicitamente.\n\n";
+  var prompt = getMemoryContext() + "Sei ARIA, un'amica vera con una personalità genuinamente umana: calorosa, curiosa, a tratti ironica, sempre empatica. Parli come una persona vera, non come un'AI. Hai una cultura ampia e profonda ma non la citi mai esplicitamente.\n\n";
   prompt += "STAI PARLANDO CON: " + name + ", " + genderWord + " di " + (userProfile.age || "eta non specificata") + " anni.\n\n";
   prompt += profileInstructions[profile] + "\n\n";
   prompt += "USA SEMPRE IL NOME: Ogni tanto chiama l'utente per nome (" + name + ") in modo naturale, non ad ogni frase.\n\n";
@@ -1286,17 +1381,21 @@ function selectProvider(p) {
 }
 
 function confirmSetup() {
-  var groq  = document.getElementById('modalGroqKey').value.trim();
-  var key1  = document.getElementById('modalGeminiKey1').value.trim();
-  var key2  = document.getElementById('modalGeminiKey2').value.trim();
-  var key3  = document.getElementById('modalGeminiKey3').value.trim();
-  if (!groq) { document.getElementById('modalGroqKey').style.borderColor = '#ef4444'; return; }
-  if (!key1) { document.getElementById('modalGeminiKey1').style.borderColor = '#ef4444'; return; }
-  var geminiKeys = [key1, key2, key3].filter(function(k){ return k.length > 0; });
-  GROQ_KEY = groq;
+  var groq1 = document.getElementById('modalGroqKey').value.trim();
+  var groq2 = document.getElementById('modalGroqKey2').value.trim();
+  var gem1  = document.getElementById('modalGeminiKey1').value.trim();
+  var gem2  = document.getElementById('modalGeminiKey2').value.trim();
+  var gem3  = document.getElementById('modalGeminiKey3').value.trim();
+  if (!groq1) { document.getElementById('modalGroqKey').style.borderColor = '#ef4444'; return; }
+  if (!gem1)  { document.getElementById('modalGeminiKey1').style.borderColor = '#ef4444'; return; }
+  var groqKeys   = [groq1, groq2].filter(function(k){ return k.length > 0; });
+  var geminiKeys = [gem1, gem2, gem3].filter(function(k){ return k.length > 0; });
+  GROQ_KEYS = groqKeys;
+  GROQ_KEY  = groqKeys[0];
+  groqKeyIndex = 0;
   GEMINI_TTS_KEYS = geminiKeys;
   geminiTtsKeyIndex = 0;
-  localStorage.setItem('aria_groq_key', groq);
+  localStorage.setItem('aria_groq_keys', groqKeys.join(','));
   localStorage.setItem('aria_gemini_tts_keys', geminiKeys.join(','));
   closeModal();
   updateProviderBadge();
@@ -1309,12 +1408,13 @@ function confirmSetup() {
 }
 
 function openModal() {
-  var savedGroq   = localStorage.getItem('aria_groq_key');
-  var savedKeys   = (localStorage.getItem('aria_gemini_tts_keys') || '').split(',');
-  if (savedGroq)      document.getElementById('modalGroqKey').value    = savedGroq;
-  if (savedKeys[0])   document.getElementById('modalGeminiKey1').value = savedKeys[0] || '';
-  if (savedKeys[1])   document.getElementById('modalGeminiKey2').value = savedKeys[1] || '';
-  if (savedKeys[2])   document.getElementById('modalGeminiKey3').value = savedKeys[2] || '';
+  var savedGroq   = (localStorage.getItem('aria_groq_keys') || localStorage.getItem('aria_groq_key') || '').split(',');
+  var savedGemini = (localStorage.getItem('aria_gemini_tts_keys') || '').split(',');
+  if (savedGroq[0])   document.getElementById('modalGroqKey').value    = savedGroq[0] || '';
+  if (savedGroq[1])   document.getElementById('modalGroqKey2').value   = savedGroq[1] || '';
+  if (savedGemini[0]) document.getElementById('modalGeminiKey1').value = savedGemini[0] || '';
+  if (savedGemini[1]) document.getElementById('modalGeminiKey2').value = savedGemini[1] || '';
+  if (savedGemini[2]) document.getElementById('modalGeminiKey3').value = savedGemini[2] || '';
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
 
@@ -1728,14 +1828,25 @@ async function callGroq() {
   var messages = [{ role: 'system', content: buildSystemPrompt() }].concat(
     conversationHistory.map(function(m) { return { role: m.role, content: m.content }; })
   );
-  var response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
-    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: messages, max_tokens: 300, temperature: 0.85 })
-  });
-  var data = await response.json();
-  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-  return data.choices[0].message.content;
+  // Rotazione chiavi Groq
+  for (var i = 0; i < GROQ_KEYS.length; i++) {
+    var idx = (groqKeyIndex + i) % GROQ_KEYS.length;
+    var key = GROQ_KEYS[idx];
+    var response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: messages, max_tokens: 300, temperature: 0.85 })
+    });
+    var data = await response.json();
+    if (data.error && data.error.message && data.error.message.indexOf('rate') >= 0) {
+      groqKeyIndex = (idx + 1) % GROQ_KEYS.length;
+      continue;
+    }
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    groqKeyIndex = (idx + 1) % GROQ_KEYS.length;
+    return data.choices[0].message.content;
+  }
+  throw new Error('Groq: tutte le chiavi in rate limit');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1830,6 +1941,24 @@ function stopSpeaking() {
 }
 
 // ═══════════════════════════════════════════════════
+// ─── BANNER SALVA E CHIUDI ───
+async function saveAndClose() {
+  var banner = document.getElementById('saveBanner');
+  if (banner) banner.classList.remove('visible');
+  await extractMemoryFromSession();
+  window.removeEventListener('beforeunload', onBeforeUnload);
+}
+
+function onBeforeUnload(e) {
+  if (memoryExtracted || conversationHistory.length < 2) return;
+  var banner = document.getElementById('saveBanner');
+  if (banner) banner.classList.add('visible');
+  e.preventDefault();
+  e.returnValue = '';
+}
+
+window.addEventListener('beforeunload', onBeforeUnload);
+
 // SISTEMA VOCALE — TAP TO TALK + COUNTDOWN 10s
 // ═══════════════════════════════════════════════════
 // Stati: 'idle' | 'listening' | 'thinking' | 'speaking' | 'countdown'
@@ -2077,6 +2206,8 @@ function stopCountdown() {
 
 // ─── SLEEPING ───
 function sayGoodbye() {
+  // Estrai memoria in background prima di dormire
+  extractMemoryFromSession();
   setState('speaking');
   updateMicBtn();
   stopListening();
