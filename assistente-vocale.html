@@ -943,8 +943,8 @@
         <div class="ob-qlabel">Sei...</div>
         <div id="ob3Answer" class="ob-answer" style="display:none;"></div>
         <div class="ob-chips" id="obGenderChips">
-          <div class="ob-chip" onclick="obSelectGender('F')">Ragazza</div>
-          <div class="ob-chip" onclick="obSelectGender('M')">Ragazzo</div>
+          <div class="ob-chip" onclick="obSelectGender('F')">Femmina</div>
+          <div class="ob-chip" onclick="obSelectGender('M')">Maschio</div>
           <div class="ob-chip" onclick="obSelectGender('N')">Altro</div>
         </div>
       </div>
@@ -965,8 +965,10 @@
     <input type="password" class="modal-input" id="modalGroqKey" placeholder="gsk_..." />
     <div class="modal-hint">Chiave gratuita su <a href="https://console.groq.com" target="_blank">console.groq.com</a></div>
 
-    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent);letter-spacing:1px;margin-bottom:8px;margin-top:12px;">🟢 GEMINI TTS — voce (fino a 3 chiavi, separate da virgola)</div>
-    <textarea class="modal-input" id="modalGeminiKeys" placeholder="AIza..., AIza..., AIza..." rows="3" style="resize:none;font-size:0.75rem;"></textarea>
+    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent);letter-spacing:1px;margin-bottom:8px;margin-top:12px;">🟢 GEMINI TTS — voce (fino a 3 chiavi)</div>
+    <input type="password" class="modal-input" id="modalGeminiKey1" placeholder="Chiave 1 — AIza..." style="margin-bottom:6px;" />
+    <input type="password" class="modal-input" id="modalGeminiKey2" placeholder="Chiave 2 — AIza... (opzionale)" style="margin-bottom:6px;" />
+    <input type="password" class="modal-input" id="modalGeminiKey3" placeholder="Chiave 3 — AIza... (opzionale)" />
     <div class="modal-hint" style="margin-bottom:16px;">Chiavi gratuite su <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> — usa progetti diversi per aumentare il rate limit</div>
 
     <button class="btn-confirm" onclick="confirmSetup()">✓ Salva e inizia</button>
@@ -1284,13 +1286,13 @@ function selectProvider(p) {
 }
 
 function confirmSetup() {
-  var groq        = document.getElementById('modalGroqKey').value.trim();
-  var geminiRaw   = document.getElementById('modalGeminiKeys').value.trim();
-  if (!groq)      { document.getElementById('modalGroqKey').style.borderColor = '#ef4444'; return; }
-  if (!geminiRaw) { document.getElementById('modalGeminiKeys').style.borderColor = '#ef4444'; return; }
-  // Pulisce e valida le chiavi TTS
-  var geminiKeys = geminiRaw.split(',').map(function(k){ return k.trim(); }).filter(function(k){ return k.length > 0; });
-  if (!geminiKeys.length) { document.getElementById('modalGeminiKeys').style.borderColor = '#ef4444'; return; }
+  var groq  = document.getElementById('modalGroqKey').value.trim();
+  var key1  = document.getElementById('modalGeminiKey1').value.trim();
+  var key2  = document.getElementById('modalGeminiKey2').value.trim();
+  var key3  = document.getElementById('modalGeminiKey3').value.trim();
+  if (!groq) { document.getElementById('modalGroqKey').style.borderColor = '#ef4444'; return; }
+  if (!key1) { document.getElementById('modalGeminiKey1').style.borderColor = '#ef4444'; return; }
+  var geminiKeys = [key1, key2, key3].filter(function(k){ return k.length > 0; });
   GROQ_KEY = groq;
   GEMINI_TTS_KEYS = geminiKeys;
   geminiTtsKeyIndex = 0;
@@ -1298,7 +1300,6 @@ function confirmSetup() {
   localStorage.setItem('aria_gemini_tts_keys', geminiKeys.join(','));
   closeModal();
   updateProviderBadge();
-  // Dopo aver salvato le chiavi — procedi con onboarding o saluto
   if (!userProfile.done) {
     document.getElementById('onboardingOverlay').classList.remove('hidden');
     setTimeout(function() { document.getElementById('obName').focus(); }, 300);
@@ -1309,9 +1310,11 @@ function confirmSetup() {
 
 function openModal() {
   var savedGroq   = localStorage.getItem('aria_groq_key');
-  var savedGemini = localStorage.getItem('aria_gemini_tts_keys');
-  if (savedGroq)   document.getElementById('modalGroqKey').value   = savedGroq;
-  if (savedGemini) document.getElementById('modalGeminiKeys').value = savedGemini;
+  var savedKeys   = (localStorage.getItem('aria_gemini_tts_keys') || '').split(',');
+  if (savedGroq)      document.getElementById('modalGroqKey').value    = savedGroq;
+  if (savedKeys[0])   document.getElementById('modalGeminiKey1').value = savedKeys[0] || '';
+  if (savedKeys[1])   document.getElementById('modalGeminiKey2').value = savedKeys[1] || '';
+  if (savedKeys[2])   document.getElementById('modalGeminiKey3').value = savedKeys[2] || '';
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
 
