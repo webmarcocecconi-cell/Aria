@@ -832,31 +832,16 @@
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-box">
     <div class="modal-title">⚙️ CONFIGURA ARIA</div>
-    <div class="modal-sub">Scegli il provider AI e inserisci la tua chiave API gratuita o a pagamento</div>
+    <div class="modal-sub">ARIA usa Groq per il testo (veloce) e Gemini per la voce (naturale)</div>
 
-    <div class="provider-grid">
-      <div class="provider-btn" id="btnAnthropic" onclick="selectProvider('anthropic')">
-        <span class="p-icon">🟣</span>
-        <div class="p-name">ANTHROPIC</div>
-        <div class="p-price">a pagamento</div>
-      </div>
-      <div class="provider-btn selected" id="btnGemini" onclick="selectProvider('gemini')">
-        <span class="p-icon">🟢</span>
-        <div class="p-name">GEMINI</div>
-        <div class="p-price">✨ gratuito</div>
-      </div>
-      <div class="provider-btn" id="btnGroq" onclick="selectProvider('groq')">
-        <span class="p-icon">🔵</span>
-        <div class="p-name">GROQ</div>
-        <div class="p-price">✨ gratuito</div>
-      </div>
-    </div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent3);letter-spacing:1px;margin-bottom:8px;">🔵 GROQ — testo (gratuito)</div>
+    <input type="password" class="modal-input" id="modalGroqKey" placeholder="gsk_..." />
+    <div class="modal-hint">Chiave gratuita su <a href="https://console.groq.com" target="_blank">console.groq.com</a></div>
 
-    <input type="password" class="modal-input" id="modalApiKey" placeholder="Incolla qui la tua API Key..." />
-    <div class="modal-hint" id="modalHint">
-      🟢 <strong>Gemini (consigliato)</strong> — Gratuito fino a 1.500 richieste/giorno.<br>
-      Ottieni la chiave su <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>
-    </div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent);letter-spacing:1px;margin-bottom:8px;margin-top:8px;">🟢 GEMINI — voce TTS (gratuito)</div>
+    <input type="password" class="modal-input" id="modalGeminiKey" placeholder="AIza..." />
+    <div class="modal-hint" style="margin-bottom:16px;">Chiave gratuita su <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a></div>
+
     <button class="btn-confirm" onclick="confirmSetup()">✓ Inizia a parlare con ARIA</button>
   </div>
 </div>
@@ -966,8 +951,10 @@
 // ═══════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════
-var API_KEY = '';
-var PROVIDER = 'gemini';
+var GROQ_KEY = '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';
+var GEMINI_KEY = 'AIzaSyDT1VKi_RtXw7v_TinLIx6WjdDpN_yMpAY';
+var API_KEY = '';  // legacy, non usato
+var PROVIDER = 'groq';
 var LANG = 'it';
 var selectedVoiceName = localStorage.getItem('aria_voice') || '';
 var selectedGeminiVoice = localStorage.getItem('aria_gemini_voice') || 'Kore';
@@ -976,39 +963,24 @@ var isSpeaking = false;
 var recognition = null;
 var currentUtterance = null;
 var currentAudio = null;
-var audioCtx = null;  // AudioContext sbloccato
+var audioCtx = null;
 var conversationHistory = [];
 
 function unlockAudio() {
-  // Crea e sblocca AudioContext con interazione utente
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // Riproduce 0.1s di silenzio per sbloccare
     var buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
     var src = audioCtx.createBufferSource();
-    src.buffer = buf;
-    src.connect(audioCtx.destination);
-    src.start();
+    src.buffer = buf; src.connect(audioCtx.destination); src.start();
   } catch(e) {}
   document.getElementById('audioUnlockOverlay').classList.add('hidden');
-  // Mostra modal configurazione se necessario
-  var savedKey = localStorage.getItem('aria_api_key');
-  var savedProvider = localStorage.getItem('aria_provider');
-  if (savedKey && savedProvider) {
-    API_KEY = savedKey;
-    PROVIDER = savedProvider;
-    closeModal();
-    updateProviderBadge();
-    if (selectedVoiceName) {
-      document.getElementById('voiceBadge').textContent = '🔊 ' + selectedVoiceName.split(' ')[0].toUpperCase();
-    }
-    addBubble('aria', 'Ciao! Sono ARIA 💜 Sono felice di conoscerti! Di cosa vuoi che parliamo?');
-    setEmotion('felice');
-    speak('Ciao! Sono ARIA, sono qui per te. Di cosa vuoi parlare?', 'felice');
-  } else {
-    selectProvider('gemini');
-  }
+  closeModal();
+  updateProviderBadge();
+  addBubble('aria', 'Ciao! Sono ARIA 💜 Sono felice di conoscerti! Di cosa vuoi che parliamo?');
+  setEmotion('felice');
+  speak('Ciao! Sono ARIA, sono qui per te. Di cosa vuoi parlare?', 'felice');
   initSpeechRecognition();
+  updateStateLabel();
 }
 
 var PROVIDER_INFO = {
@@ -1048,24 +1020,28 @@ function selectProvider(p) {
 }
 
 function confirmSetup() {
-  var key = document.getElementById('modalApiKey').value.trim();
-  if (!key) { document.getElementById('modalApiKey').style.borderColor = '#ef4444'; return; }
-  API_KEY = key;
-  localStorage.setItem('aria_api_key', key);
-  localStorage.setItem('aria_provider', PROVIDER);
+  var groq   = document.getElementById('modalGroqKey').value.trim();
+  var gemini = document.getElementById('modalGeminiKey').value.trim();
+  if (!groq)   { document.getElementById('modalGroqKey').style.borderColor   = '#ef4444'; return; }
+  if (!gemini) { document.getElementById('modalGeminiKey').style.borderColor = '#ef4444'; return; }
+  GROQ_KEY   = groq;
+  GEMINI_KEY = gemini;
+  localStorage.setItem('aria_groq_key',   groq);
+  localStorage.setItem('aria_gemini_key', gemini);
   closeModal();
   updateProviderBadge();
   if (document.getElementById('chatArea').children.length === 0) {
     addBubble('aria', 'Perfetto! Sono ARIA 💜 Tutto configurato! Di cosa vuoi parlare?');
     setEmotion('felice');
+    speak('Perfetto! Sono ARIA, tutto configurato. Di cosa vuoi parlare?', 'felice');
   }
 }
 
 function openModal() {
-  var savedKey = localStorage.getItem('aria_api_key');
-  if (savedKey) document.getElementById('modalApiKey').value = savedKey;
-  var savedProv = localStorage.getItem('aria_provider') || 'gemini';
-  selectProvider(savedProv);
+  var savedGroq   = localStorage.getItem('aria_groq_key');
+  var savedGemini = localStorage.getItem('aria_gemini_key');
+  if (savedGroq)   document.getElementById('modalGroqKey').value   = savedGroq;
+  if (savedGemini) document.getElementById('modalGeminiKey').value = savedGemini;
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
 
@@ -1142,8 +1118,7 @@ function closeModal() {
 }
 
 function updateProviderBadge() {
-  var info = PROVIDER_INFO[PROVIDER] || PROVIDER_INFO['gemini'];
-  document.getElementById('providerBadge').textContent = info.icon + ' ' + info.label;
+  document.getElementById('providerBadge').textContent = '🔵 GROQ + 🟢 TTS';
 }
 
 // ═══════════════════════════════════════════════════
@@ -1320,21 +1295,16 @@ function setStatus(msg, cls) {
 // API CALL — MULTI PROVIDER
 // ═══════════════════════════════════════════════════
 async function askAria(userMsg) {
-  if (!API_KEY) { openModal(); return; }
+  if (!GROQ_KEY) { openModal(); return; }
 
   addBubble('user', userMsg);
   conversationHistory.push({ role: 'user', content: userMsg });
   setState('thinking');
   addTyping();
-  setStatus('ARIA sta pensando...', 'thinking');
   setEmotion('pensierosa');
 
   try {
-    // 1. Ottieni testo AI
-    var fullText = '';
-    if (PROVIDER === 'anthropic') fullText = await callAnthropic();
-    else if (PROVIDER === 'gemini') fullText = await callGemini();
-    else if (PROVIDER === 'groq') fullText = await callGroq();
+    var fullText = await callGroq();
 
     var emoMatch = fullText.match(/\[EMO:([^\]]+)\]/);
     var emo = emoMatch ? emoMatch[1] : 'neutra';
@@ -1344,26 +1314,20 @@ async function askAria(userMsg) {
     conversationHistory.push({ role: 'assistant', content: fullText });
     setEmotion(emo);
 
-    // 2. Avvia fetch TTS in parallelo alla frase di attesa
-    if (PROVIDER === 'gemini' && API_KEY && audioCtx) {
+    if (GEMINI_KEY && audioCtx) {
       var ttsPromise = fetchTTS(cleanText).catch(function() { return null; });
-
       goSpeaking();
-      setStatus('ARIA sta parlando...', 'speaking');
       document.getElementById('btnStop').style.display = 'flex';
-
       var wavBuffer = await ttsPromise;
       if (wavBuffer) {
         setEmotion('parlando');
         await playWavBuffer(wavBuffer, emo, cleanText);
       } else {
-        // TTS fallito — mostra solo testo, niente voce di sistema
         showSubtitle('aria', cleanText);
-        setEmotion(emo || 'neutra');
+        document.getElementById('btnStop').style.display = 'none';
         goIdleAfterSpeaking();
       }
     } else {
-      // Provider non Gemini — solo testo, niente voce
       showSubtitle('aria', cleanText);
       setEmotion(emo || 'neutra');
       goIdleAfterSpeaking();
@@ -1372,14 +1336,12 @@ async function askAria(userMsg) {
   } catch (err) {
     removeTyping();
     showSubtitle('aria', '⚠️ ' + (err.message || 'Errore connessione.'));
-    setStatus('Errore');
     setEmotion('neutra');
     setState('idle');
     updateMicBtn();
   }
 }
 
-// Fetch pura del TTS — restituisce wavBuffer, retry su 429
 async function fetchTTS(text) {
   var voiceName = selectedGeminiVoice || 'Kore';
   var body = JSON.stringify({
@@ -1390,16 +1352,16 @@ async function fetchTTS(text) {
   for (var attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) await new Promise(function(r) { setTimeout(r, 2000 * attempt); });
     var response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + API_KEY,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + GEMINI_KEY,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }
     );
     var data = await response.json();
-    if (data.error && data.error.code === 429) continue; // retry
+    if (data.error && data.error.code === 429) continue;
     if (data.error) throw new Error(data.error.message);
     var b64 = data.candidates[0].content.parts[0].inlineData.data;
     return pcmToWav(base64ToArrayBuffer(b64), 24000, 1, 16);
   }
-  throw new Error('TTS 429 dopo 3 tentativi');
+  throw new Error('TTS 429');
 }
 
 // Riproduce un wavBuffer e chiama goIdleAfterSpeaking quando finisce
@@ -1484,16 +1446,8 @@ async function callGroq() {
   );
   var response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + API_KEY
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages: messages,
-      max_tokens: 600,
-      temperature: 0.85
-    })
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + GROQ_KEY },
+    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: messages, max_tokens: 300, temperature: 0.85 })
   });
   var data = await response.json();
   if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
@@ -1655,6 +1609,13 @@ var listenAttempts = 0;
 
 function startListening() {
   clearTimeout(silenceTimer);
+  if (VOICE_STATE === 'listening') {
+    // già in ascolto — riavvia solo il timer
+    silenceTimer = setTimeout(function() {
+      if (VOICE_STATE === 'listening') startCountdown();
+    }, 20000);
+    return;
+  }
   var banner = document.getElementById('wakeBanner');
   if (banner) banner.classList.remove('visible');
   setState('listening');
@@ -1662,9 +1623,7 @@ function startListening() {
   updateMicBtn();
   setEmotion('ascoltando');
   startListeningAttempt();
-  console.log('[ARIA] startListening — silenceTimer 20s start');
   silenceTimer = setTimeout(function() {
-    console.log('[ARIA] silenceTimer scattato — VOICE_STATE=' + VOICE_STATE);
     if (VOICE_STATE === 'listening') startCountdown();
   }, 20000);
 }
@@ -1887,13 +1846,13 @@ function updateWakeWordBtn() {
 
 // ─── TTS BREVE ───
 async function playShortTTS(text, callback) {
-  if (!audioCtx || !API_KEY || PROVIDER !== 'gemini') {
+  if (!audioCtx || !GEMINI_KEY) {
     if (callback) setTimeout(callback, 500);
     return;
   }
   try {
     var res = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + API_KEY,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + GEMINI_KEY,
       { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: text }] }],
           generationConfig: { response_modalities: ['AUDIO'],
