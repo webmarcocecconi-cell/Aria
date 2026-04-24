@@ -1185,6 +1185,8 @@ var API_KEY = '';  // legacy, non usato
 var MEMORY_MAX = 50;
 var ariaMemory = JSON.parse(localStorage.getItem('aria_memory') || '[]');
 var memoryExtracted = false; // evita doppia estrazione per sessione
+var ttsRateLimited = false;    // true quando tutte le chiavi sono in 429
+var ttsRetryTimeout = null;    // timer retry dopo 60s
 var PROVIDER = 'groq';
 var LANG = 'it';
 var selectedVoiceName = localStorage.getItem('aria_voice') || '';
@@ -1825,12 +1827,27 @@ async function askAria(userMsg) {
     conversationHistory.push({ role: 'assistant', content: fullText });
     setEmotion(emo);
 
-    if (GEMINI_TTS_KEYS && GEMINI_TTS_KEYS.length > 0) {
-      var ttsPromise = fetchTTS(cleanText).catch(function() { return null; });
+    if (GEMINI_TTS_KEYS && GEMINI_TTS_KEYS.length > 0 && !ttsRateLimited) {
+      var ttsPromise = fetchTTS(cleanText).catch(function(e) {
+        if (e.message && e.message.indexOf('rate limit') >= 0) return 'RATE_LIMITED';
+        return null;
+      });
       goSpeaking();
       document.getElementById('btnStop').style.display = 'flex';
       var wavBuffer = await ttsPromise;
-      if (wavBuffer) {
+      if (wavBuffer === 'RATE_LIMITED') {
+        // Tutte le chiavi in 429 — avviso carino + retry dopo 60s
+        ttsRateLimited = true;
+        var rateMsg = 'Scusa, ho la voce un po\'  affaticata... leggi tu per ora, riprovo tra poco! 😅';
+        showSubtitle('aria', cleanText);
+        addBubble('aria', rateMsg);
+        document.getElementById('btnStop').style.display = 'none';
+        goIdleAfterSpeaking();
+        clearTimeout(ttsRetryTimeout);
+        ttsRetryTimeout = setTimeout(function() {
+          ttsRateLimited = false;
+        }, 60000);
+      } else if (wavBuffer) {
         setEmotion('parlando');
         await playWavBuffer(wavBuffer, emo, cleanText);
       } else {
@@ -1883,7 +1900,7 @@ async function fetchTTS(text) {
     var b64 = data.candidates[0].content.parts[0].inlineData.data;
     return pcmToWav(base64ToArrayBuffer(b64), 24000, 1, 16);
   }
-  throw new Error('TTS: tutte le chiavi in rate limit');
+  throw new Error('TTS: tutte le chiavi in rate limit — retry tra 60s');
 }
 
 // Riproduce un wavBuffer e chiama goIdleAfterSpeaking quando finisce
