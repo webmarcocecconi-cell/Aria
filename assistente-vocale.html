@@ -1972,6 +1972,7 @@ async function askAria(userMsg) {
       } else if (wavBuffer) {
         setEmotion('parlando');
         await playWavBuffer(wavBuffer, emo, cleanText);
+        goIdleAfterSpeaking();
       } else {
         showSubtitle('aria', cleanText);
         document.getElementById('btnStop').style.display = 'none';
