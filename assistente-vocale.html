@@ -1832,10 +1832,7 @@ function showSubtitle(who, text) {
   label.textContent = who === 'user' ? 'TU' : 'ARIA';
   box.className = 'subtitle-box visible' + (who === 'user' ? ' user-sub' : '');
   subText.textContent = text;
-  // Auto-nascondi dopo 4 secondi per messaggi utente, mai per ARIA (la nasconde onended)
-  if (who === 'user') {
-    subtitleTimer = setTimeout(function() { box.classList.remove('visible'); }, 4000);
-  }
+  // Sottotitolo persistente — sparisce solo quando arriva il messaggio successivo
 }
 
 function hideSubtitle() {
@@ -2039,12 +2036,11 @@ function playWavBuffer(wavBuffer, emo, subtitleText) {
       setStatus('');
       setEmotion(emo || 'neutra');
       document.getElementById('btnStop').style.display = 'none';
-      hideSubtitle();
+      // NON nascondere il sottotitolo — resta visibile fino al prossimo messaggio
+      // NON chiamare goIdleAfterSpeaking qui — lo fa askAria dopo l'await
       resolve();
-      goIdleAfterSpeaking();
     }
     function onStart() {
-      // Mostra sottotitolo SOLO quando l'audio inizia — perfettamente sincronizzato
       if (subtitleText) showSubtitle('aria', subtitleText);
       startMouthTalk();
     }
