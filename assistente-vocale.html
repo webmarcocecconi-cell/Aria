@@ -1909,7 +1909,22 @@ async function askAria(userMsg) {
   setEmotion('pensierosa');
 
   try {
-    var useGrounding = detectGroundingTrigger(userMsg) && GEMINI_TTS_KEYS.length > 0;
+    // Controlla se c'è un intent pendente di attualità nella history
+    // (ARIA ha appena chiesto una città/luogo in risposta a una domanda meteo)
+    var pendingGrounding = false;
+    if (!detectGroundingTrigger(userMsg) && conversationHistory.length >= 3) {
+      var prevAriaMsg = '';
+      for (var i = conversationHistory.length - 2; i >= 0; i--) {
+        if (conversationHistory[i].role === 'assistant') {
+          prevAriaMsg = conversationHistory[i].content.toLowerCase();
+          break;
+        }
+      }
+      var askingLocation = /\b(quale città|che città|dove sei|in quale città|in che città|di quale città|dove ti trovi|da che parte)\b/.test(prevAriaMsg);
+      if (askingLocation) pendingGrounding = true;
+    }
+
+    var useGrounding = (detectGroundingTrigger(userMsg) || pendingGrounding) && GEMINI_TTS_KEYS.length > 0;
     var fullText;
     if (useGrounding) {
       try {
@@ -2425,7 +2440,7 @@ function startListening() {
   if (VOICE_STATE === 'listening') {
     // già in ascolto — riavvia solo il timer
     silenceTimer = setTimeout(function() {
-      if (VOICE_STATE === 'listening') startCountdown();
+      if (VOICE_STATE === 'listening' && !isYoutubeOpen()) startCountdown();
     }, 20000);
     return;
   }
@@ -2439,8 +2454,13 @@ function startListening() {
   setEmotion('ascoltando');
   startListeningAttempt();
   silenceTimer = setTimeout(function() {
-    if (VOICE_STATE === 'listening') startCountdown();
+    if (VOICE_STATE === 'listening' && !isYoutubeOpen()) startCountdown();
   }, 20000);
+}
+
+function isYoutubeOpen() {
+  var player = document.getElementById('ytPlayer');
+  return player && player.classList.contains('visible');
 }
 
 function startListeningAttempt() {
