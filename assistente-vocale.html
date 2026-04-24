@@ -2136,16 +2136,22 @@ var GROUNDING_TRIGGERS = [
   // Meteo
   /\b(che tempo|tempo (fa|farà|c'è)|piov|nebbioso|neve|nev|nuvoloso|sole|soleggiato|temperatura|gradi|umidità|vento|previsioni meteo|meteo)\b/i,
   // Notizie / attualità
-  /\b(ultime notizie|notizie|cosa (è successo|succede|sta succedendo)|oggi nel mondo|accaduto oggi|news|si parla di|titoli|giornale)\b/i,
+  /\b(ultime notizie|notizie|notizia|cosa (è successo|succede|sta succedendo)|oggi nel mondo|accaduto oggi|news|si parla di|titoli|giornale)\b/i,
   /\b(ieri|stamattina|stamane|stasera|questa (settimana|mattina|sera|notte)|nelle ultime ore)\b/i,
+  // Guerra / conflitti / geopolitica
+  /\b(guerra|conflitto|attacco|bombardamento|missile|esercito|truppe|invasione|cessate il fuoco|crisi|tensioni|diplomazia|accordo di pace|sanzioni|nato|onu|terrorismo)\b/i,
+  // Politica / elezioni
+  /\b(elezioni|governo|premier|ministro|presidente della repubblica|parlamento|voto|referendum|sondaggio|politica)\b/i,
   // Sport
   /\b(risultato|ha vinto|chi ha vinto|classifica|partita|gol|gara|campionato|serie a|champions|coppa|torneo|derby)\b/i,
   // Fatti / geo / storia recente
   /\b(dov'è|dove si trova|capitale di|presidente di|chi è il|com'è fatto|quanti abitanti|distanza tra|quanto è lontano)\b/i,
   // Date ed eventi futuri/passati
   /\b(quanti giorni (mancano|sono passati)|quando è|data di|anniversario|scadenza|prossimo|festività|natale|pasqua|capodanno)\b/i,
-  // Prezzi / borsa
-  /\b(prezzo (del|della|di)|costo|quotazione|euro|dollaro|borsa|azioni|bitcoin|crypto)\b/i
+  // Prezzi / borsa / economia
+  /\b(prezzo (del|della|di)|costo|quotazione|euro|dollaro|borsa|azioni|bitcoin|crypto|inflazione|pil|economia|recessione)\b/i,
+  // Tecnologia / scienza recente
+  /\b(ultimo modello|nuova versione|ha lanciato|ha presentato|aggiornamento|release|elon musk|openai|apple|google|samsung|tesla)\b/i
 ];
 
 function detectGroundingTrigger(text) {
