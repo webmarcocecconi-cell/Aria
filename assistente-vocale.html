@@ -887,6 +887,58 @@
     width: 1px; height: 14px;
     background: var(--border); margin-left: 12px;
   }
+
+  /* ─── MENU IMPOSTAZIONI ─── */
+  .settings-btn {
+    position: relative; z-index: 2;
+    width: 38px; height: 38px;
+    background: rgba(124,109,250,0.12);
+    border: 1px solid rgba(124,109,250,0.25);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; margin: 6px auto 4px;
+    font-size: 16px;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .settings-btn:hover { background: rgba(124,109,250,0.22); border-color: rgba(124,109,250,0.5); }
+  .settings-btn.open { background: rgba(124,109,250,0.28); border-color: rgba(124,109,250,0.7); }
+
+  .settings-menu {
+    position: relative; z-index: 10;
+    background: var(--surface);
+    border: 1px solid rgba(124,109,250,0.2);
+    border-radius: 16px;
+    margin: 0 20px 8px;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .settings-menu.open {
+    max-height: 300px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .settings-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .settings-item:last-child { border-bottom: none; }
+  .settings-item:hover { background: rgba(124,109,250,0.08); }
+  .settings-item:active { background: rgba(124,109,250,0.15); }
+  .settings-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .settings-label { flex: 1; }
+  .settings-title { font-size: 0.8rem; color: var(--text); font-weight: 600; }
+  .settings-sub { font-size: 0.65rem; color: var(--muted); margin-top: 1px; }
+  .settings-arrow { font-size: 0.75rem; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -1014,15 +1066,46 @@
     <span id="stateLabelText">in attesa</span>
   </div>
 </div>
-<div class="lang-badge">
-  <span id="langToggle" onclick="toggleLang()">🌍 IT</span>
+
+<!-- Pulsante impostazioni -->
+<div class="settings-btn" id="settingsBtn" onclick="toggleSettingsMenu()">⚙️</div>
+
+<!-- Menu a espansione -->
+<div class="settings-menu" id="settingsMenu">
+  <div class="settings-item" onclick="openVoiceModal(); closeSettingsMenu();">
+    <div class="settings-icon" style="background:rgba(52,211,153,0.12);">🔊</div>
+    <div class="settings-label">
+      <div class="settings-title">Voce</div>
+      <div class="settings-sub" id="voiceBadge">Kore — Gemini TTS</div>
+    </div>
+    <div class="settings-arrow">›</div>
+  </div>
+  <div class="settings-item" onclick="exportMemory(); closeSettingsMenu();">
+    <div class="settings-icon" style="background:rgba(251,191,36,0.12);">📤</div>
+    <div class="settings-label">
+      <div class="settings-title">Esporta memoria</div>
+      <div class="settings-sub">Copia codice per backup</div>
+    </div>
+    <div class="settings-arrow">›</div>
+  </div>
+  <div class="settings-item" onclick="importMemory(); closeSettingsMenu();">
+    <div class="settings-icon" style="background:rgba(244,114,182,0.12);">📥</div>
+    <div class="settings-label">
+      <div class="settings-title">Importa memoria</div>
+      <div class="settings-sub">Ripristina da codice</div>
+    </div>
+    <div class="settings-arrow">›</div>
+  </div>
+  <div class="settings-item" onclick="openModal(); closeSettingsMenu();">
+    <div class="settings-icon" style="background:rgba(124,109,250,0.12);">🔑</div>
+    <div class="settings-label">
+      <div class="settings-title">Chiavi API</div>
+      <div class="settings-sub" id="providerBadge">Groq + Gemini TTS</div>
+    </div>
+    <div class="settings-arrow">›</div>
+  </div>
 </div>
-<div class="provider-badge" onclick="openModal()">
-  <span id="providerBadge">🟢 GEMINI</span>
-</div>
-<div class="provider-badge" onclick="openVoiceModal()">
-  <span id="voiceBadge">🔊 VOCE</span>
-</div>
+
 </div><!-- fine face-col -->
 
 <!-- MODAL SELEZIONE VOCE -->
@@ -1317,8 +1400,10 @@ function startAriaAfterOnboarding(isNew) {
   }
   addBubble('aria', greeting);
   setEmotion('felice');
-  speak(greetingTTS, 'felice');
+  // Saluto solo testuale — nessuna chiamata TTS per preservare rate limit
+  showSubtitle('aria', greeting);
   initSpeechRecognition();
+  startListening();
   updateStateLabel();
 }
 
@@ -1484,6 +1569,59 @@ function populateVoiceList() {
     };
     list.appendChild(btn);
   });
+}
+
+// ─── MENU IMPOSTAZIONI ───
+function toggleSettingsMenu() {
+  var menu = document.getElementById('settingsMenu');
+  var btn  = document.getElementById('settingsBtn');
+  var isOpen = menu.classList.contains('open');
+  if (isOpen) {
+    menu.classList.remove('open');
+    btn.classList.remove('open');
+  } else {
+    menu.classList.add('open');
+    btn.classList.add('open');
+  }
+}
+
+function closeSettingsMenu() {
+  document.getElementById('settingsMenu').classList.remove('open');
+  document.getElementById('settingsBtn').classList.remove('open');
+}
+
+// ─── EXPORT / IMPORT MEMORIA ───
+function exportMemory() {
+  if (!ariaMemory.length) {
+    alert('Nessun ricordo salvato ancora.');
+    return;
+  }
+  var data = JSON.stringify({ memory: ariaMemory, profile: userProfile, version: 1 });
+  var encoded = btoa(unescape(encodeURIComponent(data)));
+  // Copia negli appunti
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(encoded).then(function() {
+      alert('Codice memoria copiato negli appunti! Incollalo su un altro dispositivo per ripristinare.');
+    }).catch(function() {
+      prompt('Copia questo codice:', encoded);
+    });
+  } else {
+    prompt('Copia questo codice:', encoded);
+  }
+}
+
+function importMemory() {
+  var code = prompt('Incolla il codice memoria:');
+  if (!code) return;
+  try {
+    var data = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+    if (!data.memory || !Array.isArray(data.memory)) throw new Error();
+    ariaMemory = data.memory;
+    saveMemory();
+    alert('Memoria ripristinata con successo! (' + ariaMemory.length + ' ricordi)');
+  } catch(e) {
+    alert('Codice non valido. Riprova.');
+  }
 }
 
 function closeModal() {
