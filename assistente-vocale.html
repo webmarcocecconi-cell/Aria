@@ -853,9 +853,10 @@
   .ob-num.inactive { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
   .ob-content { flex: 1; }
   .ob-qlabel {
-    font-size: 0.72rem; color: var(--muted);
+    font-size: 0.78rem; color: var(--text);
     letter-spacing: 1px; text-transform: uppercase;
     font-family: 'Space Mono', monospace; margin-bottom: 6px;
+    font-weight: 600;
   }
   .ob-answer {
     font-size: 0.9rem; color: var(--accent); font-weight: 600;
@@ -907,39 +908,47 @@
     <div class="ob-sub">Ciao! Prima di iniziare, dimmi un po' di te 💜</div>
 
     <!-- Step 1: Nome -->
-    <div class="ob-step" id="obStep1">
+    <div class="ob-step">
       <div class="ob-num active" id="obNum1">1</div>
       <div class="ob-content">
         <div class="ob-qlabel">Come ti chiami?</div>
         <div id="ob1Answer" class="ob-answer" style="display:none;"></div>
-        <input class="ob-input" id="obName" placeholder="Il tuo nome..." onkeydown="if(event.key==='Enter') obNext(1)" />
+        <div id="ob1Input" style="display:flex;gap:8px;align-items:center;">
+          <input class="ob-input" id="obName" placeholder="Il tuo nome..." onkeydown="if(event.key==='Enter') obNext(1)" style="flex:1;" />
+          <button class="btn-confirm" style="width:auto;padding:10px 16px;flex-shrink:0;" onclick="obNext(1)">→</button>
+        </div>
       </div>
     </div>
     <div class="ob-connector"></div>
 
     <!-- Step 2: Età -->
-    <div class="ob-step" id="obStep2">
+    <div class="ob-step">
       <div class="ob-num inactive" id="obNum2">2</div>
-      <div class="ob-content">
+      <div id="ob2Content" style="display:none;flex:1;">
         <div class="ob-qlabel">Quanti anni hai?</div>
         <div id="ob2Answer" class="ob-answer" style="display:none;"></div>
-        <input class="ob-input" id="obAge" type="number" min="4" max="110" placeholder="Es. 9" style="display:none;" onkeydown="if(event.key==='Enter') obNext(2)" />
+        <div id="ob2Input" style="display:flex;gap:8px;align-items:center;">
+          <input class="ob-input" id="obAge" type="number" min="4" max="110" placeholder="Es. 9" onkeydown="if(event.key==='Enter') obNext(2)" style="flex:1;" />
+          <button class="btn-confirm" style="width:auto;padding:10px 16px;flex-shrink:0;" onclick="obNext(2)">→</button>
+        </div>
       </div>
+      <div id="ob2Inactive" style="flex:1;"><div class="ob-qlabel" style="color:var(--muted);opacity:0.4;">Quanti anni hai?</div></div>
     </div>
     <div class="ob-connector"></div>
 
     <!-- Step 3: Sesso -->
-    <div class="ob-step" id="obStep3">
+    <div class="ob-step">
       <div class="ob-num inactive" id="obNum3">3</div>
-      <div class="ob-content">
+      <div id="ob3Content" style="display:none;flex:1;">
         <div class="ob-qlabel">Sei...</div>
         <div id="ob3Answer" class="ob-answer" style="display:none;"></div>
-        <div class="ob-chips" id="obGenderChips" style="display:none;">
-          <div class="ob-chip" onclick="obSelectGender('F', 'Ragazza')">Ragazza</div>
-          <div class="ob-chip" onclick="obSelectGender('M', 'Ragazzo')">Ragazzo</div>
-          <div class="ob-chip" onclick="obSelectGender('N', 'Preferisco non dirlo')">Altro</div>
+        <div class="ob-chips" id="obGenderChips">
+          <div class="ob-chip" onclick="obSelectGender('F')">Ragazza</div>
+          <div class="ob-chip" onclick="obSelectGender('M')">Ragazzo</div>
+          <div class="ob-chip" onclick="obSelectGender('N')">Altro</div>
         </div>
       </div>
+      <div id="ob3Inactive" style="flex:1;"><div class="ob-qlabel" style="color:var(--muted);opacity:0.4;">Sei...</div></div>
     </div>
 
     <button class="btn-confirm" id="obConfirmBtn" style="display:none;margin-top:20px;" onclick="obConfirm()">✓ Inizia a parlare con ARIA</button>
@@ -1138,30 +1147,34 @@ var obSelectedGender = '';
 
 function obNext(step) {
   if (step === 1) {
+    if (document.getElementById('obNum1').classList.contains('done')) return;
     var name = document.getElementById('obName').value.trim();
     if (!name) { document.getElementById('obName').focus(); return; }
     // Conferma step 1
     document.getElementById('obNum1').className = 'ob-num done';
     document.getElementById('obNum1').textContent = '✓';
-    document.getElementById('obName').style.display = 'none';
+    document.getElementById('ob1Input').style.display = 'none';
     document.getElementById('ob1Answer').style.display = 'block';
     document.getElementById('ob1Answer').textContent = name;
     // Attiva step 2
     document.getElementById('obNum2').className = 'ob-num active';
-    document.getElementById('obAge').style.display = 'block';
+    document.getElementById('ob2Inactive').style.display = 'none';
+    document.getElementById('ob2Content').style.display = 'flex';
     setTimeout(function() { document.getElementById('obAge').focus(); }, 100);
   } else if (step === 2) {
+    if (document.getElementById('obNum2').classList.contains('done')) return;
     var age = parseInt(document.getElementById('obAge').value);
     if (!age || age < 4 || age > 110) { document.getElementById('obAge').focus(); return; }
     // Conferma step 2
     document.getElementById('obNum2').className = 'ob-num done';
     document.getElementById('obNum2').textContent = '✓';
-    document.getElementById('obAge').style.display = 'none';
+    document.getElementById('ob2Input').style.display = 'none';
     document.getElementById('ob2Answer').style.display = 'block';
     document.getElementById('ob2Answer').textContent = age + ' anni';
     // Attiva step 3
     document.getElementById('obNum3').className = 'ob-num active';
-    document.getElementById('obGenderChips').style.display = 'flex';
+    document.getElementById('ob3Inactive').style.display = 'none';
+    document.getElementById('ob3Content').style.display = 'flex';
   }
 }
 
