@@ -2650,7 +2650,7 @@ function goThinking(transcript) {
 
 // ─── DOPO RISPOSTA ───
 function goIdleAfterSpeaking() {
-  if (VOICE_STATE !== 'speaking') return;
+  setState('speaking'); // forza lo stato corretto prima di procedere
   if (conversationHistory.length > 0) {
     startListening();
   } else {
