@@ -2288,6 +2288,7 @@ function createYTPlayer(videoId) {
 
 function closeYoutube() {
   var player = document.getElementById('ytPlayer');
+  var wasVisible = player.classList.contains('visible');
   player.classList.remove('visible');
   if (ytPlayerObj) {
     try { ytPlayerObj.destroy(); } catch(e) {}
@@ -2296,6 +2297,23 @@ function closeYoutube() {
   var old = document.getElementById('ytIframe');
   if (old) old.remove();
   hideSubtitle();
+  // Se il video si è chiuso automaticamente (fine), ARIA commenta
+  if (wasVisible && VOICE_STATE !== 'speaking') {
+    var frasi = [
+      'Com\'era? Ti è piaciuta?',
+      'Bella, no? Vuoi sentire altro?',
+      'Finita! Vuoi un\'altra canzone?'
+    ];
+    var frase = frasi[Math.floor(Math.random() * frasi.length)];
+    // Resetta il silence timer per dare tempo alla risposta
+    clearTimeout(silenceTimer);
+    setState('speaking');
+    addBubble('aria', frase);
+    setEmotion('felice');
+    playShortTTS(frase, function() {
+      goIdleAfterSpeaking();
+    });
+  }
 }
 
 async function handleYoutubeRequest(userMsg) {
@@ -2315,12 +2333,14 @@ async function handleYoutubeRequest(userMsg) {
     var query = extractYoutubeQuery(userMsg);
     var video = await searchYoutube(query);
     removeTyping();
-    var replyMsg = 'Eccolo! Ho trovato "' + video.title + '" — lo metto su!';
-    addBubble('aria', replyMsg);
+    var spokenMsg  = 'Eccolo, lo metto su!';
+    var displayMsg = '🎵 ' + video.title;
+    addBubble('aria', displayMsg);
+    showSubtitle('aria', displayMsg);
     setEmotion('felice');
     setState('speaking');
     // Prima parla, POI apre il player
-    await new Promise(function(resolve) { playShortTTS(replyMsg, resolve); });
+    await new Promise(function(resolve) { playShortTTS(spokenMsg, resolve); });
     openYoutubePlayer(video.id, video.title);
     goIdleAfterSpeaking();
   } catch(e) {
