@@ -1179,6 +1179,7 @@ var groqKeyIndex = 0;
 var GEMINI_KEY = ''; // legacy
 // Chiavi Gemini TTS — caricate da localStorage
 var GEMINI_TTS_KEYS = (localStorage.getItem('aria_gemini_tts_keys') || '').split(',').filter(function(k){ return k.trim(); });
+var geminiTtsKeyIndex = 0;
 var API_KEY = '';  // legacy, non usato
 
 // ─── MEMORIA CIRCOLARE ───
