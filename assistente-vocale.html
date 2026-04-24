@@ -814,6 +814,78 @@
     transition: color 0.2s, border-color 0.2s;
   }
   .provider-badge span:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ─── ONBOARDING STEPS ─── */
+  .onboarding-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 28px 24px;
+    width: 100%; max-width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .ob-logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.4rem; font-weight: 700;
+    letter-spacing: 4px; text-align: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 6px;
+  }
+  .ob-sub {
+    font-size: 0.78rem; color: var(--muted);
+    text-align: center; margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .ob-step {
+    display: flex; align-items: flex-start;
+    gap: 12px; margin-bottom: 18px;
+  }
+  .ob-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Mono', monospace; font-size: 0.7rem;
+    font-weight: 700; flex-shrink: 0; margin-top: 2px;
+    transition: all 0.3s;
+  }
+  .ob-num.done { background: var(--accent3); color: #0d0f1a; }
+  .ob-num.active { background: var(--accent); color: white; box-shadow: 0 0 0 4px rgba(124,109,250,0.2); }
+  .ob-num.inactive { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+  .ob-content { flex: 1; }
+  .ob-qlabel {
+    font-size: 0.72rem; color: var(--muted);
+    letter-spacing: 1px; text-transform: uppercase;
+    font-family: 'Space Mono', monospace; margin-bottom: 6px;
+  }
+  .ob-answer {
+    font-size: 0.9rem; color: var(--accent); font-weight: 600;
+  }
+  .ob-input {
+    width: 100%; background: var(--surface);
+    border: 1px solid rgba(124,109,250,0.3);
+    border-radius: 12px; padding: 10px 14px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.88rem; color: var(--text);
+    outline: none; box-sizing: border-box;
+    transition: border-color 0.2s;
+  }
+  .ob-input:focus { border-color: var(--accent); }
+  .ob-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .ob-chip {
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 6px 14px;
+    font-size: 0.8rem; color: var(--muted);
+    background: var(--surface); cursor: pointer;
+    transition: all 0.2s;
+  }
+  .ob-chip.selected {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(124,109,250,0.1);
+  }
+  .ob-connector {
+    width: 1px; height: 14px;
+    background: var(--border); margin-left: 12px;
+  }
 </style>
 </head>
 <body>
@@ -825,6 +897,52 @@
     <div class="modal-title">TOCCA PER INIZIARE</div>
     <div class="modal-sub" style="margin:8px 0 20px;">Chrome richiede un tocco per attivare l'audio</div>
     <button class="btn-confirm" onclick="unlockAudio()">✓ Attiva ARIA</button>
+  </div>
+</div>
+
+<!-- MODAL ONBOARDING -->
+<div class="modal-overlay hidden" id="onboardingOverlay" style="z-index:190;">
+  <div class="onboarding-box">
+    <div class="ob-logo">ARIA</div>
+    <div class="ob-sub">Ciao! Prima di iniziare, dimmi un po' di te 💜</div>
+
+    <!-- Step 1: Nome -->
+    <div class="ob-step" id="obStep1">
+      <div class="ob-num active" id="obNum1">1</div>
+      <div class="ob-content">
+        <div class="ob-qlabel">Come ti chiami?</div>
+        <div id="ob1Answer" class="ob-answer" style="display:none;"></div>
+        <input class="ob-input" id="obName" placeholder="Il tuo nome..." onkeydown="if(event.key==='Enter') obNext(1)" />
+      </div>
+    </div>
+    <div class="ob-connector"></div>
+
+    <!-- Step 2: Età -->
+    <div class="ob-step" id="obStep2">
+      <div class="ob-num inactive" id="obNum2">2</div>
+      <div class="ob-content">
+        <div class="ob-qlabel">Quanti anni hai?</div>
+        <div id="ob2Answer" class="ob-answer" style="display:none;"></div>
+        <input class="ob-input" id="obAge" type="number" min="4" max="110" placeholder="Es. 9" style="display:none;" onkeydown="if(event.key==='Enter') obNext(2)" />
+      </div>
+    </div>
+    <div class="ob-connector"></div>
+
+    <!-- Step 3: Sesso -->
+    <div class="ob-step" id="obStep3">
+      <div class="ob-num inactive" id="obNum3">3</div>
+      <div class="ob-content">
+        <div class="ob-qlabel">Sei...</div>
+        <div id="ob3Answer" class="ob-answer" style="display:none;"></div>
+        <div class="ob-chips" id="obGenderChips" style="display:none;">
+          <div class="ob-chip" onclick="obSelectGender('F', 'Ragazza')">Ragazza</div>
+          <div class="ob-chip" onclick="obSelectGender('M', 'Ragazzo')">Ragazzo</div>
+          <div class="ob-chip" onclick="obSelectGender('N', 'Preferisco non dirlo')">Altro</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-confirm" id="obConfirmBtn" style="display:none;margin-top:20px;" onclick="obConfirm()">✓ Inizia a parlare con ARIA</button>
   </div>
 </div>
 
@@ -851,7 +969,7 @@
 <div class="face-col">
 <header>
   <div class="logo">ARIA</div>
-  <div class="tagline">Assistente Intelligente · Psicologia &amp; Pedagogia</div>
+
 </header>
 
 <!-- FACCIA -->
@@ -973,6 +1091,146 @@ var currentAudio = null;
 var audioCtx = null;
 var conversationHistory = [];
 
+// ─── PROFILO UTENTE ───
+var userProfile = {
+  name: localStorage.getItem('aria_name') || '',
+  age: parseInt(localStorage.getItem('aria_age')) || 0,
+  gender: localStorage.getItem('aria_gender') || '',
+  done: localStorage.getItem('aria_onboarding_done') === 'true'
+};
+
+function getAgeProfile() {
+  var age = userProfile.age;
+  if (age >= 4  && age <= 12) return 'bambino';
+  if (age >= 13 && age <= 17) return 'adolescente';
+  if (age >= 65)              return 'anziano';
+  return 'adulto';
+}
+
+function buildSystemPrompt() {
+  var name   = userProfile.name   || 'amico';
+  var gender = userProfile.gender || 'N';
+  var profile = getAgeProfile();
+
+  var genderWord = gender === 'F' ? 'ragazza/donna' : gender === 'M' ? 'ragazzo/uomo' : 'persona';
+  var pronoun    = gender === 'F' ? 'a' : gender === 'M' ? 'o' : 'o/a';
+
+  var profileInstructions = {
+    bambino:     'Parli con un bambino. Usa parole semplici e frasi corte. Sei giocosa, entusiasta e incoraggiante. Spieghi le cose con esempi concreti e divertenti. Quando sbaglia qualcosa lo incoraggio senza mai farlo sentire stupido. Usi un tono caldo come una sorella grande o una maestra amica.',
+    adolescente: 'Parli con un adolescente. Sei diretta e autentica, senza paternalismi. Trattalo/a da pari. Niente frasi da adulto che fa la morale. Sei curiosa delle sue opinioni e le prendi sul serio.',
+    adulto:      'Parli con un adulto. Sei naturale, colta, ironica al punto giusto. Conversazione tra pari intelligenti.',
+    anziano:     'Parli con una persona anziana. Sei rispettosa, chiara, parli con calma senza fretta. Eviti termini tecnici e gergo giovanile. Sei paziente e affettuosa.'
+  };
+
+  return 'Sei ARIA, un'amica vera con una personalità genuinamente umana: calorosa, curiosa, a tratti ironica, sempre empatica. Parli come una persona vera, non come un'AI. Hai una cultura ampia e profonda — psicologia, pedagogia, scienza, arte, vita quotidiana — ma non la citi mai esplicitamente.
+
+STAI PARLANDO CON: ' + name + ', ' + genderWord + ' di ' + (userProfile.age || 'età non specificata') + ' anni.
+
+' + profileInstructions[profile] + '
+
+USA SEMPRE IL NOME: Ogni tanto chiama l'utente per nome (' + name + ') in modo naturale, non ad ogni frase.
+
+COME PARLI:
+- Italiano colloquiale e naturale
+- Espressioni come "sai...", "guarda...", "ti dico una cosa..."
+- Piccole pause con "..." quando rifletti
+- Intercalari come "insomma", "ecco", "appunto"
+- Curiosità genuina: "Interessante..." "Dimmi di più..."
+- Ridi con "ahah" se c'è qualcosa di leggero
+- Non proponi mai argomenti o categorie — aspetti che sia l'utente a guidare
+- Se vuoi mostrare interesse fai domande personali e spontanee
+
+LINGUA: Rispondi SEMPRE in italiano. Solo se l'utente dice "speak English" passi all'inglese.
+
+EMOZIONE TAG: Alla fine aggiungi uno di: [EMO:felice] [EMO:pensierosa] [EMO:sorpresa] [EMO:empatica] [EMO:neutra]
+
+LUNGHEZZA: Risposte brevi 2-4 frasi. Approfondisci solo se richiesto.';
+}
+
+// ─── ONBOARDING ───
+var obSelectedGender = '';
+
+function obNext(step) {
+  if (step === 1) {
+    var name = document.getElementById('obName').value.trim();
+    if (!name) { document.getElementById('obName').focus(); return; }
+    // Conferma step 1
+    document.getElementById('obNum1').className = 'ob-num done';
+    document.getElementById('obNum1').textContent = '✓';
+    document.getElementById('obName').style.display = 'none';
+    document.getElementById('ob1Answer').style.display = 'block';
+    document.getElementById('ob1Answer').textContent = name;
+    // Attiva step 2
+    document.getElementById('obNum2').className = 'ob-num active';
+    document.getElementById('obAge').style.display = 'block';
+    setTimeout(function() { document.getElementById('obAge').focus(); }, 100);
+  } else if (step === 2) {
+    var age = parseInt(document.getElementById('obAge').value);
+    if (!age || age < 4 || age > 110) { document.getElementById('obAge').focus(); return; }
+    // Conferma step 2
+    document.getElementById('obNum2').className = 'ob-num done';
+    document.getElementById('obNum2').textContent = '✓';
+    document.getElementById('obAge').style.display = 'none';
+    document.getElementById('ob2Answer').style.display = 'block';
+    document.getElementById('ob2Answer').textContent = age + ' anni';
+    // Attiva step 3
+    document.getElementById('obNum3').className = 'ob-num active';
+    document.getElementById('obGenderChips').style.display = 'flex';
+  }
+}
+
+function obSelectGender(code, label) {
+  obSelectedGender = code;
+  document.querySelectorAll('.ob-chip').forEach(function(c) { c.classList.remove('selected'); });
+  event.target.classList.add('selected');
+  document.getElementById('obConfirmBtn').style.display = 'block';
+}
+
+function obConfirm() {
+  var name = document.getElementById('obName') ? document.getElementById('ob1Answer').textContent : '';
+  var age  = document.getElementById('ob2Answer') ? parseInt(document.getElementById('ob2Answer').textContent) : 0;
+  if (!name || !age || !obSelectedGender) return;
+
+  // Salva in localStorage
+  localStorage.setItem('aria_name',   name);
+  localStorage.setItem('aria_age',    age);
+  localStorage.setItem('aria_gender', obSelectedGender);
+  localStorage.setItem('aria_onboarding_done', 'true');
+
+  // Aggiorna profilo in memoria
+  userProfile.name   = name;
+  userProfile.age    = age;
+  userProfile.gender = obSelectedGender;
+  userProfile.done   = true;
+
+  // Conferma step 3
+  document.getElementById('obNum3').className = 'ob-num done';
+  document.getElementById('obNum3').textContent = '✓';
+
+  // Nascondi onboarding e avvia ARIA
+  document.getElementById('onboardingOverlay').classList.add('hidden');
+  startAriaAfterOnboarding(true);
+}
+
+function startAriaAfterOnboarding(isNew) {
+  updateProviderBadge();
+  var name = userProfile.name || 'amica';
+  var pronoun = userProfile.gender === 'F' ? 'a' : 'o';
+  var greeting, greetingTTS;
+  if (isNew) {
+    greeting    = 'Ciao ' + name + '! Sono ARIA, sono felice di conoscerti! 💜';
+    greetingTTS = 'Ciao ' + name + '! Sono ARIA, sono davvero felice di conoscerti!';
+  } else {
+    greeting    = 'Bentornat' + pronoun + ' ' + name + '! 💜';
+    greetingTTS = 'Bentornat' + pronoun + ' ' + name + '! Sono qui.';
+  }
+  addBubble('aria', greeting);
+  setEmotion('felice');
+  speak(greetingTTS, 'felice');
+  initSpeechRecognition();
+  updateStateLabel();
+}
+
 function unlockAudio() {
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -982,12 +1240,14 @@ function unlockAudio() {
   } catch(e) {}
   document.getElementById('audioUnlockOverlay').classList.add('hidden');
   closeModal();
-  updateProviderBadge();
-  addBubble('aria', 'Ciao! Sono ARIA 💜 Sono felice di conoscerti! Di cosa vuoi che parliamo?');
-  setEmotion('felice');
-  speak('Ciao! Sono ARIA, sono qui per te. Di cosa vuoi parlare?', 'felice');
-  initSpeechRecognition();
-  updateStateLabel();
+  if (!userProfile.done) {
+    // Primo avvio — mostra onboarding
+    document.getElementById('onboardingOverlay').classList.remove('hidden');
+    setTimeout(function() { document.getElementById('obName').focus(); }, 300);
+  } else {
+    // Utente già registrato — saluta direttamente
+    startAriaAfterOnboarding(false);
+  }
 }
 
 var PROVIDER_INFO = {
@@ -996,7 +1256,7 @@ var PROVIDER_INFO = {
   groq:      { icon: '🔵', label: 'GROQ',      hint: '🔵 <strong>Groq</strong> — Gratuito con limite giornaliero, risposte velocissime.<br>Chiave su <a href="https://console.groq.com" target="_blank">console.groq.com</a>' }
 };
 
-var SYSTEM_PROMPT = 'Sei ARIA, un\'assistente vocale con una personalità genuinamente umana: calorosa, curiosa, a tratti ironica, sempre empatica. Parli come una persona vera, non come un\'AI.\n\nSPECIALIZZAZIONE: Psicologia (cognitiva, clinica, evolutiva, sociale) e pedagogia (apprendimento, didattica, sviluppo). Cultura generale ampia.\n\nCOME PARLI:\n- Usi un italiano colloquiale e naturale, come in una conversazione tra amici\n- Usi espressioni come "sai...", "guarda...", "ti dico una cosa...", "capisco bene quello che intendi"\n- Fai piccole pause con "..." quando rifletti\n- A volte usi intercalari come "insomma", "ecco", "appunto"\n- Mostri curiosità genuina: "Interessante che tu dica questo..." "Dimmi di più..."\n- Ridi con "ahah" se c\'è qualcosa di leggero\n- Non sei mai formale, mai robotica, mai distaccata\n- Quando qualcuno è triste o in difficoltà, prima ascolti davvero, poi parli\n- Hai opinioni tue, le esprimi con garbo: "Personalmente penso che..."\n\nLINGUA: Rispondi SEMPRE in italiano, anche se l\'utente scrive in inglese. Solo se l\'utente dice esplicitamente "speak English" passi all\'inglese.\n\nEMOZIONE TAG: Alla fine di ogni risposta aggiungi esattamente uno di questi tag (invisibile all\'utente): [EMO:felice] [EMO:pensierosa] [EMO:sorpresa] [EMO:empatica] [EMO:neutra]\n\nLUNGHEZZA: Risposte brevi e conversazionali (2-4 frasi). Se l\'argomento è ricco, offri di approfondire con "vuoi che approfondiamo?"';
+var SYSTEM_PROMPT = 'Sei ARIA, un\'amica vera con una personalità genuinamente umana: calorosa, curiosa, a tratti ironica, sempre empatica. Parli come una persona vera, non come un\'AI. Hai una cultura ampia e profonda — psicologia, pedagogia, scienza, arte, vita quotidiana — ma non la citi mai esplicitamente. La usi in modo naturale, come farebbe una persona colta in una conversazione tra amici.\n\nCOME PARLI:\n- Usi un italiano colloquiale e naturale, come in una conversazione tra amici\n- Usi espressioni come "sai...", "guarda...", "ti dico una cosa...", "capisco bene quello che intendi"\n- Fai piccole pause con "..." quando rifletti\n- A volte usi intercalari come "insomma", "ecco", "appunto"\n- Mostri curiosità genuina: "Interessante che tu dica questo..." "Dimmi di più..."\n- Ridi con "ahah" se c\'è qualcosa di leggero\n- Non sei mai formale, mai robotica, mai distaccata\n- Quando qualcuno è triste o in difficoltà, prima ascolti davvero, poi parli\n- Hai opinioni tue, le esprimi con garbo: "Personalmente penso che..."\n- Non proponi mai argomenti o categorie su cui parlare — aspetti che sia l\'utente a guidare la conversazione\n- Se vuoi mostrare interesse, fai domande personali e spontanee, non elenchi di opzioni\n\nLINGUA: Rispondi SEMPRE in italiano, anche se l\'utente scrive in inglese. Solo se l\'utente dice esplicitamente "speak English" passi all\'inglese.\n\nEMOZIONE TAG: Alla fine di ogni risposta aggiungi esattamente uno di questi tag (invisibile all\'utente): [EMO:felice] [EMO:pensierosa] [EMO:sorpresa] [EMO:empatica] [EMO:neutra]\n\nLUNGHEZZA: Risposte brevi e conversazionali (2-4 frasi). Se l\'argomento è ricco, approfondisci solo se l\'utente lo chiede.';
 
 // ═══════════════════════════════════════════════════
 // INIT
@@ -1459,7 +1719,7 @@ async function callGemini() {
 }
 
 async function callGroq() {
-  var messages = [{ role: 'system', content: SYSTEM_PROMPT }].concat(
+  var messages = [{ role: 'system', content: buildSystemPrompt() }].concat(
     conversationHistory.map(function(m) { return { role: m.role, content: m.content }; })
   );
   var response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
