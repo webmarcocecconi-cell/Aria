@@ -1574,6 +1574,8 @@ var commandRecognition = null;
 var countdownTimer = null;
 var countdownInterval = null;
 var countdownSec = 10;
+var accumulatedText = '';  // testo accumulato tra riavvii
+var speechEndTimer = null; // timer 3s silenzio → invia testo
 
 function setState(s) {
   VOICE_STATE = s;
@@ -1638,6 +1640,8 @@ function startListening() {
   if (banner) banner.classList.remove('visible');
   setState('listening');
   listenAttempts = 0;
+  accumulatedText = '';
+  clearTimeout(speechEndTimer);
   updateMicBtn();
   setEmotion('ascoltando');
   startListeningAttempt();
@@ -1660,9 +1664,17 @@ function startListeningAttempt() {
   commandRecognition.onresult = function(e) {
     var t = e.results[0][0].transcript.trim();
     if (t) {
-      clearTimeout(silenceTimer);
-      stopListening();
-      goThinking(t);
+      accumulatedText = accumulatedText ? accumulatedText + ' ' + t : t;
+      // Reset timer 3s — ogni nuova parola rimanda l'invio
+      clearTimeout(speechEndTimer);
+      speechEndTimer = setTimeout(function() {
+        if (VOICE_STATE !== 'listening' && VOICE_STATE !== 'countdown') return;
+        var finalText = accumulatedText.trim();
+        accumulatedText = '';
+        clearTimeout(silenceTimer);
+        stopListening();
+        goThinking(finalText);
+      }, 3000);
     }
   };
   commandRecognition.onerror = function(err) {
