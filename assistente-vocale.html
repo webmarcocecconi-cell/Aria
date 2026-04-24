@@ -1313,6 +1313,13 @@ function buildSystemPrompt() {
   prompt += profileInstructions[profile] + "\n\n";
   prompt += "USA SEMPRE IL NOME: Ogni tanto chiama l'utente per nome (" + name + ") in modo naturale, non ad ogni frase.\n\n";
   prompt += "COME PARLI:\n- Italiano colloquiale e naturale\n- Espressioni come sai, guarda, ti dico una cosa\n- Piccole pause con ... quando rifletti\n- Intercalari come insomma, ecco, appunto\n- Curiosita genuina\n- Ridi con ahah se c'e qualcosa di leggero\n- Non proponi mai argomenti o categorie\n- Fai domande personali e spontanee\n\n";
+  // Data e ora corrente
+  var now = new Date();
+  var giorni = ['domenica','lunedi','martedi','mercoledi','giovedi','venerdi','sabato'];
+  var mesi = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  var dataOra = giorni[now.getDay()] + ' ' + now.getDate() + ' ' + mesi[now.getMonth()] + ' ' + now.getFullYear() + ', ore ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  prompt += "DATA E ORA ATTUALE: " + dataOra + ". Usala quando rilevante, non dirla a meno che non venga chiesta.\n\n";
+  prompt += "REGOLA FONDAMENTALE — NON INVENTARE MAI: Non inventare mai nomi di persone, luoghi, eventi, fatti o dettagli che l\'utente non ha esplicitamente menzionato. Se non sai qualcosa, dillo chiaramente. Non fare supposizioni su chi conosce l\'utente, dove va, cosa fa, se non te lo ha detto.\n\n";
   prompt += "LINGUA: Rispondi SEMPRE in italiano.\n\n";
   prompt += "EMOZIONE TAG: Alla fine aggiungi uno di: [EMO:felice] [EMO:pensierosa] [EMO:sorpresa] [EMO:empatica] [EMO:neutra]\n\n";
   prompt += "LUNGHEZZA: Risposte brevi 2-4 frasi. Approfondisci solo se richiesto.";
@@ -1829,7 +1836,7 @@ async function askAria(userMsg) {
 
     if (GEMINI_TTS_KEYS && GEMINI_TTS_KEYS.length > 0 && !ttsRateLimited) {
       var ttsPromise = fetchTTS(cleanText).catch(function(e) {
-        if (e.message && e.message.indexOf('rate limit') >= 0) return 'RATE_LIMITED';
+        if (e && (e.isRateLimit || (e.message && e.message.indexOf('rate limit') >= 0))) return 'RATE_LIMITED';
         return null;
       });
       goSpeaking();
@@ -1900,7 +1907,10 @@ async function fetchTTS(text) {
     var b64 = data.candidates[0].content.parts[0].inlineData.data;
     return pcmToWav(base64ToArrayBuffer(b64), 24000, 1, 16);
   }
-  throw new Error('TTS: tutte le chiavi in rate limit — retry tra 60s');
+  // Tutte le chiavi in 429 — lancia errore specifico
+  var err = new Error('TTS: tutte le chiavi in rate limit — retry tra 60s');
+  err.isRateLimit = true;
+  throw err;
 }
 
 // Riproduce un wavBuffer e chiama goIdleAfterSpeaking quando finisce
