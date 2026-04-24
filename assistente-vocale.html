@@ -499,7 +499,8 @@
     flex-direction: column;
   }
   .yt-player.visible { display: flex; }
-  .yt-player iframe {
+  .yt-player iframe,
+  .yt-player #ytIframe {
     width: 100%;
     aspect-ratio: 16/9;
     border: none;
@@ -1195,7 +1196,7 @@
 
 <!-- YOUTUBE PLAYER -->
 <div class="yt-player" id="ytPlayer">
-  <iframe id="ytIframe" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  <!-- il div#ytIframe viene inserito qui dinamicamente da openYoutubePlayer -->
   <div class="yt-player-bar">
     <span style="font-size:1rem;">🎵</span>
     <span class="yt-player-title" id="ytTitle">—</span>
@@ -2229,17 +2230,72 @@ async function searchYoutube(query) {
 
 function openYoutubePlayer(videoId, title) {
   var player = document.getElementById('ytPlayer');
-  var iframe  = document.getElementById('ytIframe');
   document.getElementById('ytTitle').textContent = title;
-  iframe.src = 'https://www.youtube.com/embed/' + videoId + '?autoplay=1&rel=0';
   player.classList.add('visible');
+  hideSubtitle();
+
+  // Rimuovi iframe precedente se esiste
+  var old = document.getElementById('ytIframe');
+  if (old) old.remove();
+
+  // Crea div placeholder per YT API
+  var div = document.createElement('div');
+  div.id = 'ytIframe';
+  player.insertBefore(div, player.firstChild);
+
+  // Carica YT IFrame API se non ancora caricata
+  if (window.YT && window.YT.Player) {
+    createYTPlayer(videoId);
+  } else {
+    window._ytPendingVideoId = videoId;
+    if (!document.getElementById('ytApiScript')) {
+      var tag = document.createElement('script');
+      tag.id = 'ytApiScript';
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    }
+  }
+}
+
+window.onYouTubeIframeAPIReady = function() {
+  if (window._ytPendingVideoId) {
+    createYTPlayer(window._ytPendingVideoId);
+    window._ytPendingVideoId = null;
+  }
+};
+
+var ytPlayerObj = null;
+
+function createYTPlayer(videoId) {
+  if (ytPlayerObj) {
+    try { ytPlayerObj.destroy(); } catch(e) {}
+    ytPlayerObj = null;
+  }
+  ytPlayerObj = new YT.Player('ytIframe', {
+    width: '100%',
+    height: '100%',
+    videoId: videoId,
+    playerVars: { autoplay: 1, rel: 0, playsinline: 1 },
+    events: {
+      onStateChange: function(event) {
+        if (event.data === YT.PlayerState.ENDED) {
+          closeYoutube();
+        }
+      }
+    }
+  });
 }
 
 function closeYoutube() {
   var player = document.getElementById('ytPlayer');
-  var iframe  = document.getElementById('ytIframe');
   player.classList.remove('visible');
-  iframe.src = '';
+  if (ytPlayerObj) {
+    try { ytPlayerObj.destroy(); } catch(e) {}
+    ytPlayerObj = null;
+  }
+  var old = document.getElementById('ytIframe');
+  if (old) old.remove();
+  hideSubtitle();
 }
 
 async function handleYoutubeRequest(userMsg) {
@@ -2263,8 +2319,9 @@ async function handleYoutubeRequest(userMsg) {
     addBubble('aria', replyMsg);
     setEmotion('felice');
     setState('speaking');
-    openYoutubePlayer(video.id, video.title);
+    // Prima parla, POI apre il player
     await new Promise(function(resolve) { playShortTTS(replyMsg, resolve); });
+    openYoutubePlayer(video.id, video.title);
     goIdleAfterSpeaking();
   } catch(e) {
     removeTyping();
@@ -2624,11 +2681,15 @@ function stopCountdown() {
 
 // ─── SLEEPING ───
 function sayGoodbye() {
-  // Estrai memoria in background prima di dormire
   extractMemoryFromSession();
   setState('speaking');
   updateMicBtn();
   stopListening();
+  // Se YouTube è aperto — vai a dormire in silenzio senza parlare sopra la musica
+  if (isYoutubeOpen()) {
+    goSleeping();
+    return;
+  }
   var frasi = [
     'Sono qui, toccami quando hai bisogno.',
     'Mi fermo un attimo, svegliami quando vuoi!',
@@ -2654,6 +2715,12 @@ function wakeUp() {
   var banner = document.getElementById('wakeBanner');
   if (banner) banner.classList.remove('visible');
   setEmotion('felice');
+  // Se YouTube è aperto — risveglio silenzioso
+  if (isYoutubeOpen()) {
+    setState('idle');
+    updateMicBtn();
+    return;
+  }
   var frasi = ['Eccomi! Di cosa vuoi parlare?', 'Sono sveglia! Come posso aiutarti?', 'Ci sono! Dimmi pure.'];
   var frase = frasi[Math.floor(Math.random() * frasi.length)];
   showSubtitle('aria', frase);
