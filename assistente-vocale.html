@@ -952,8 +952,14 @@
 // CONFIG
 // ═══════════════════════════════════════════════════
 var GROQ_KEY = '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';
-var GEMINI_KEY = 'AIzaSyDT1VKi_RtXw7v_TinLIx6WjdDpN_yMpAY'; // non più usato per TTS
-var GCLOUD_TTS_KEY = 'AIzaSyBMLVM77n9VIMih5bkZPgUK4x5XbhYVdbA';
+// Rotazione chiavi Gemini TTS — 3 chiavi = 6 RPM
+var GEMINI_TTS_KEYS = [
+  'AIzaSyDT1VKi_RtXw7v_TinLIx6WjdDpN_yMpAY', // ARIA-1
+  'AIzaSyAUu3CLCxS98VI8mA99mUBJseqo5zAD-MY',  // ARIA-2
+  'AIzaSyAX8SUqyAg3ghmcQXBJsT43A9HX_vgqyEc'   // ARIA-3
+];
+var geminiTtsKeyIndex = 0;
+var GCLOUD_TTS_KEY = ''; // non più usato
 var API_KEY = '';  // legacy, non usato
 var PROVIDER = 'groq';
 var LANG = 'it';
@@ -1119,7 +1125,7 @@ function closeModal() {
 }
 
 function updateProviderBadge() {
-  document.getElementById('providerBadge').textContent = '🔵 GROQ + ☁️ GCloud TTS';
+  document.getElementById('providerBadge').textContent = '🔵 GROQ + 🟢 GEMINI TTS';
 }
 
 // ═══════════════════════════════════════════════════
@@ -1315,7 +1321,7 @@ async function askAria(userMsg) {
     conversationHistory.push({ role: 'assistant', content: fullText });
     setEmotion(emo);
 
-    if (GCLOUD_TTS_KEY) {
+    if (GEMINI_TTS_KEYS && GEMINI_TTS_KEYS.length > 0) {
       var ttsPromise = fetchTTS(cleanText).catch(function() { return null; });
       goSpeaking();
       document.getElementById('btnStop').style.display = 'flex';
@@ -1344,27 +1350,36 @@ async function askAria(userMsg) {
 }
 
 async function fetchTTS(text) {
-  var voiceName = selectedGeminiVoice || 'it-IT-Neural2-A';
-  // Mappa voci Gemini → voci Google Cloud Neural2
-  var voiceMap = {
-    'Zephyr':'it-IT-Neural2-A','Puck':'it-IT-Neural2-C','Charon':'it-IT-Neural2-A',
-    'Kore':'it-IT-Neural2-A','Fenrir':'it-IT-Neural2-C','Leda':'it-IT-Neural2-A',
-    'Orus':'it-IT-Neural2-C','Aoede':'it-IT-Neural2-A'
-  };
-  var gcloudVoice = voiceMap[voiceName] || 'it-IT-Neural2-A';
+  var voiceName = selectedGeminiVoice || 'Kore';
   var body = JSON.stringify({
-    input: { text: text },
-    voice: { languageCode: 'it-IT', name: gcloudVoice },
-    audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0, pitch: 0 }
+    contents: [{ parts: [{ text: text }] }],
+    generationConfig: {
+      response_modalities: ['AUDIO'],
+      speech_config: { voice_config: { prebuilt_voice_config: { voice_name: voiceName } } }
+    }
   });
-  var response = await fetch(
-    'https://texttospeech.googleapis.com/v1/text:synthesize?key=' + GCLOUD_TTS_KEY,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }
-  );
-  var data = await response.json();
-  if (data.error) throw new Error(data.error.message);
-  // Google Cloud TTS restituisce MP3 base64
-  return base64ToArrayBuffer(data.audioContent);
+  // Rotazione chiavi — se 429 passa alla successiva
+  var startIndex = geminiTtsKeyIndex;
+  for (var i = 0; i < GEMINI_TTS_KEYS.length; i++) {
+    var idx = (startIndex + i) % GEMINI_TTS_KEYS.length;
+    var key = GEMINI_TTS_KEYS[idx];
+    var response = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=' + key,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }
+    );
+    var data = await response.json();
+    if (data.error && data.error.code === 429) {
+      // Questa chiave è in rate limit — prova la prossima
+      geminiTtsKeyIndex = (idx + 1) % GEMINI_TTS_KEYS.length;
+      continue;
+    }
+    if (data.error) throw new Error(data.error.message);
+    // Successo — aggiorna indice per distribuire il carico
+    geminiTtsKeyIndex = (idx + 1) % GEMINI_TTS_KEYS.length;
+    var b64 = data.candidates[0].content.parts[0].inlineData.data;
+    return pcmToWav(base64ToArrayBuffer(b64), 24000, 1, 16);
+  }
+  throw new Error('TTS: tutte le chiavi in rate limit');
 }
 
 // Riproduce un wavBuffer e chiama goIdleAfterSpeaking quando finisce
@@ -1384,9 +1399,20 @@ function playWavBuffer(wavBuffer, emo, subtitleText) {
       if (subtitleText) showSubtitle('aria', subtitleText);
       startMouthTalk();
     }
-    // Google Cloud TTS restituisce MP3 — Audio element è più affidabile su Chrome/Android
-    onStart();
-    playWithAudioElement(wavBuffer, onDone);
+    if (audioCtx) {
+      audioCtx.decodeAudioData(wavBuffer.slice(0), function(decoded) {
+        var src = audioCtx.createBufferSource();
+        src.buffer = decoded;
+        src.connect(audioCtx.destination);
+        src.onended = onDone;
+        src.start(0);
+        onStart();
+        currentAudio = { pause: function() { try { src.stop(); } catch(e){} } };
+      }, function() { onStart(); playWithAudioElement(wavBuffer, onDone); });
+    } else {
+      onStart();
+      playWithAudioElement(wavBuffer, onDone);
+    }
   });
 }
 
@@ -1484,8 +1510,8 @@ async function speak(text, emo) {
   goIdleAfterSpeaking();
 }
 
-function playWithAudioElement(mp3Buffer, onDone) {
-  var blob = new Blob([mp3Buffer], { type: 'audio/mpeg' });
+function playWithAudioElement(wavBuffer, onDone) {
+  var blob = new Blob([wavBuffer], { type: 'audio/wav' });
   var url = URL.createObjectURL(blob);
   var audio = new Audio(url);
   currentAudio = audio;
@@ -1838,7 +1864,7 @@ function updateWakeWordBtn() {
 
 // ─── TTS BREVE ───
 async function playShortTTS(text, callback) {
-  if (!GCLOUD_TTS_KEY) {
+  if (!GEMINI_TTS_KEYS || !GEMINI_TTS_KEYS.length) {
     if (callback) setTimeout(callback, 500);
     return;
   }
