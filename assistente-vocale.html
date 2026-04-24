@@ -956,20 +956,20 @@
 </div>
 
 <!-- MODAL CONFIGURAZIONE -->
-<div class="modal-overlay" id="modalOverlay">
+<div class="modal-overlay hidden" id="modalOverlay">
   <div class="modal-box">
     <div class="modal-title">⚙️ CONFIGURA ARIA</div>
-    <div class="modal-sub">ARIA usa Groq per il testo (veloce) e Gemini per la voce (naturale)</div>
+    <div class="modal-sub">Inserisci le tue chiavi API — salvate in locale, mai inviate a nessuno</div>
 
-    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent3);letter-spacing:1px;margin-bottom:8px;">🔵 GROQ — testo (gratuito)</div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent3);letter-spacing:1px;margin-bottom:8px;">🔵 GROQ — testo</div>
     <input type="password" class="modal-input" id="modalGroqKey" placeholder="gsk_..." />
     <div class="modal-hint">Chiave gratuita su <a href="https://console.groq.com" target="_blank">console.groq.com</a></div>
 
-    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent);letter-spacing:1px;margin-bottom:8px;margin-top:8px;">🟢 GEMINI — voce TTS (gratuito)</div>
-    <input type="password" class="modal-input" id="modalGeminiKey" placeholder="AIza..." />
-    <div class="modal-hint" style="margin-bottom:16px;">Chiave gratuita su <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a></div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent);letter-spacing:1px;margin-bottom:8px;margin-top:12px;">🟢 GEMINI TTS — voce (fino a 3 chiavi, separate da virgola)</div>
+    <textarea class="modal-input" id="modalGeminiKeys" placeholder="AIza..., AIza..., AIza..." rows="3" style="resize:none;font-size:0.75rem;"></textarea>
+    <div class="modal-hint" style="margin-bottom:16px;">Chiavi gratuite su <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a> — usa progetti diversi per aumentare il rate limit</div>
 
-    <button class="btn-confirm" onclick="confirmSetup()">✓ Inizia a parlare con ARIA</button>
+    <button class="btn-confirm" onclick="confirmSetup()">✓ Salva e inizia</button>
   </div>
 </div>
 
@@ -1078,15 +1078,10 @@
 // ═══════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════
-var GROQ_KEY = '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';
-// Rotazione chiavi Gemini TTS — 3 chiavi = 6 RPM
-var GEMINI_TTS_KEYS = [
-  'AIzaSyC2V5GOJZsAWdCQPNypJ3lNwlLmVyJ-Onw', // ARIA-1
-  'AIzaSyAUu3CLCxS98VI8mA99mUBJseqo5zAD-MY',  // ARIA-2
-  'AIzaSyAX8SUqyAg3ghmcQXBJsT43A9HX_vgqyEc'   // ARIA-3
-];
-var geminiTtsKeyIndex = 0;
-var GCLOUD_TTS_KEY = ''; // non più usato
+var GROQ_KEY = localStorage.getItem('aria_groq_key') || '';
+var GEMINI_KEY = localStorage.getItem('aria_gemini_key') || ''; // non più usato per TTS
+// Chiavi Gemini TTS — caricate da localStorage
+var GEMINI_TTS_KEYS = (localStorage.getItem('aria_gemini_tts_keys') || '').split(',').filter(function(k){ return k.trim(); });
 var API_KEY = '';  // legacy, non usato
 var PROVIDER = 'groq';
 var LANG = 'it';
@@ -1238,13 +1233,16 @@ function unlockAudio() {
     src.buffer = buf; src.connect(audioCtx.destination); src.start();
   } catch(e) {}
   document.getElementById('audioUnlockOverlay').classList.add('hidden');
-  closeModal();
+  // Controlla se le chiavi sono già salvate
+  if (!GROQ_KEY || !GEMINI_TTS_KEYS.length) {
+    openModal();
+    return;
+  }
+  // Chiavi ok — procedi con onboarding o saluto
   if (!userProfile.done) {
-    // Primo avvio — mostra onboarding
     document.getElementById('onboardingOverlay').classList.remove('hidden');
     setTimeout(function() { document.getElementById('obName').focus(); }, 300);
   } else {
-    // Utente già registrato — saluta direttamente
     startAriaAfterOnboarding(false);
   }
 }
@@ -1286,28 +1284,34 @@ function selectProvider(p) {
 }
 
 function confirmSetup() {
-  var groq   = document.getElementById('modalGroqKey').value.trim();
-  var gemini = document.getElementById('modalGeminiKey').value.trim();
-  if (!groq)   { document.getElementById('modalGroqKey').style.borderColor   = '#ef4444'; return; }
-  if (!gemini) { document.getElementById('modalGeminiKey').style.borderColor = '#ef4444'; return; }
-  GROQ_KEY   = groq;
-  GEMINI_KEY = gemini;
-  localStorage.setItem('aria_groq_key',   groq);
-  localStorage.setItem('aria_gemini_key', gemini);
+  var groq        = document.getElementById('modalGroqKey').value.trim();
+  var geminiRaw   = document.getElementById('modalGeminiKeys').value.trim();
+  if (!groq)      { document.getElementById('modalGroqKey').style.borderColor = '#ef4444'; return; }
+  if (!geminiRaw) { document.getElementById('modalGeminiKeys').style.borderColor = '#ef4444'; return; }
+  // Pulisce e valida le chiavi TTS
+  var geminiKeys = geminiRaw.split(',').map(function(k){ return k.trim(); }).filter(function(k){ return k.length > 0; });
+  if (!geminiKeys.length) { document.getElementById('modalGeminiKeys').style.borderColor = '#ef4444'; return; }
+  GROQ_KEY = groq;
+  GEMINI_TTS_KEYS = geminiKeys;
+  geminiTtsKeyIndex = 0;
+  localStorage.setItem('aria_groq_key', groq);
+  localStorage.setItem('aria_gemini_tts_keys', geminiKeys.join(','));
   closeModal();
   updateProviderBadge();
-  if (document.getElementById('chatArea').children.length === 0) {
-    addBubble('aria', 'Perfetto! Sono ARIA 💜 Tutto configurato! Di cosa vuoi parlare?');
-    setEmotion('felice');
-    speak('Perfetto! Sono ARIA, tutto configurato. Di cosa vuoi parlare?', 'felice');
+  // Dopo aver salvato le chiavi — procedi con onboarding o saluto
+  if (!userProfile.done) {
+    document.getElementById('onboardingOverlay').classList.remove('hidden');
+    setTimeout(function() { document.getElementById('obName').focus(); }, 300);
+  } else {
+    startAriaAfterOnboarding(false);
   }
 }
 
 function openModal() {
   var savedGroq   = localStorage.getItem('aria_groq_key');
-  var savedGemini = localStorage.getItem('aria_gemini_key');
+  var savedGemini = localStorage.getItem('aria_gemini_tts_keys');
   if (savedGroq)   document.getElementById('modalGroqKey').value   = savedGroq;
-  if (savedGemini) document.getElementById('modalGeminiKey').value = savedGemini;
+  if (savedGemini) document.getElementById('modalGeminiKeys').value = savedGemini;
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
 
