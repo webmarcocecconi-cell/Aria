@@ -351,7 +351,7 @@
 </div>
 
 <div class="wake-banner" id="wakeBanner">
-  <button class="wake-btn" onclick="wakeUp()">
+  <button class="wake-btn" onclick="wakeUp(false)">
     <span class="wake-icon">✨</span><span>Toccami per svegliarmi</span>
   </button>
 </div>
@@ -817,6 +817,7 @@ function toggleMic(){
 }
 
 function startListening(){
+  stopWakeWord(); // ferma wake word se attivo
   clearTimeout(silenceTimer);
   if(VOICE_STATE==='listening'){
     silenceTimer=setTimeout(function(){if(VOICE_STATE==='listening'&&!isYoutubeOpen())startCountdown();},20000);return;
@@ -1024,23 +1025,68 @@ function stopCountdown(){
   var ring=document.getElementById('countdownRing');if(ring)ring.style.display='none';
 }
 
+// ─── WAKE WORD ───
+var wakeRecognition=null;
+var wakeWordActive=false;
+
+function startWakeWord(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR||wakeWordActive)return;
+  wakeWordActive=true;
+  function attempt(){
+    if(!wakeWordActive)return;
+    wakeRecognition=new SR();
+    wakeRecognition.continuous=true;
+    wakeRecognition.interimResults=false;
+    wakeRecognition.lang='it-IT';
+    wakeRecognition.onresult=function(e){
+      var t=e.results[e.results.length-1][0].transcript.toLowerCase();
+      if(t.indexOf('aria')>=0){wakeUp(true);}
+    };
+    wakeRecognition.onend=function(){
+      // Riavvia silenziosamente — in sleeping i beep non danno fastidio
+      if(wakeWordActive)setTimeout(attempt,500);
+    };
+    wakeRecognition.onerror=function(){
+      if(wakeWordActive)setTimeout(attempt,1000);
+    };
+    try{wakeRecognition.start();}catch(e){if(wakeWordActive)setTimeout(attempt,1000);}
+  }
+  attempt();
+}
+
+function stopWakeWord(){
+  wakeWordActive=false;
+  if(wakeRecognition){try{wakeRecognition.stop();}catch(e){}wakeRecognition=null;}
+}
+
 // ─── SLEEPING ───
 function sayGoodbye(){
   extractMemoryFromSession();setState('speaking');updateMicBtn();stopListening();
   if(isYoutubeOpen()){goSleeping();return;}
-  var frasi=['Sono qui, toccami quando hai bisogno.','Mi fermo un attimo, svegliami quando vuoi!','A presto! Toccami per ricominciare.','Vado a riposare, ma sono qui se mi chiami.'];
+  var frasi=['Sono qui, chiamami quando hai bisogno.','Mi fermo un attimo, svegliami quando vuoi!','A presto! Dimmi pure il mio nome per ricominciare.','Vado a riposare, ma sono qui se mi chiami.'];
   var frase=frasi[Math.floor(Math.random()*frasi.length)];
   showSubtitle('aria',frase);setEmotion('empatica');
   playShortTTS(frase,function(){goSleeping();});
 }
-function goSleeping(){setState('idle');updateMicBtn();setEmotion('dormendo');hideSubtitle();var b=document.getElementById('wakeBanner');if(b)b.classList.add('visible');}
-function wakeUp(){
-  var b=document.getElementById('wakeBanner');if(b)b.classList.remove('visible');setEmotion('felice');
+
+function goSleeping(){
+  setState('idle');updateMicBtn();setEmotion('dormendo');hideSubtitle();
+  var b=document.getElementById('wakeBanner');if(b)b.classList.add('visible');
+  startWakeWord(); // ascolta "aria" in background
+}
+
+function wakeUp(fromWakeWord){
+  stopWakeWord(); // spegne Web Speech
+  var b=document.getElementById('wakeBanner');if(b)b.classList.remove('visible');
+  setEmotion('felice');
   if(isYoutubeOpen()){setState('idle');updateMicBtn();return;}
-  var frasi=['Eccomi! Di cosa vuoi parlare?','Sono sveglia! Come posso aiutarti?','Ci sono! Dimmi pure.'];
+  var frasi=fromWakeWord
+    ?['Ciao, sono qui! Dimmi pure.','Eccomi! Di cosa vuoi parlare?','Sono sveglia, dimmi tutto!']
+    :['Eccomi! Di cosa vuoi parlare?','Sono sveglia! Come posso aiutarti?','Ci sono! Dimmi pure.'];
   var frase=frasi[Math.floor(Math.random()*frasi.length)];
   showSubtitle('aria',frase);
-  playShortTTS(frase,function(){hideSubtitle();setState('idle');updateMicBtn();});
+  playShortTTS(frase,function(){hideSubtitle();startListening();});
 }
 
 function updateMicBtn(){
@@ -1064,6 +1110,15 @@ window.onload=function(){
   document.getElementById('textInput').addEventListener('keydown',function(e){if(e.key==='Enter')sendText();});
   document.getElementById('audioUnlockOverlay').classList.remove('hidden');
 };
+
+// Chiamata dopo unlock audio — avvia wake word se onboarding completato e ARIA è in idle
+function onAudioUnlocked(){
+  if(localStorage.getItem('aria_onboarding_done')==='true'&&VOICE_STATE==='idle'){
+    // Se ARIA è già dormendo (wakeBanner visibile) avvia wake word
+    var b=document.getElementById('wakeBanner');
+    if(b&&b.classList.contains('visible'))startWakeWord();
+  }
+}
 </script>
 </body>
 </html>
