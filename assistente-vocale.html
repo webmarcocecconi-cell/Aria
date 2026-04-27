@@ -794,14 +794,11 @@ window.addEventListener('beforeunload',onBeforeUnload);
 // SISTEMA VOCALE — TAP TO TALK
 // ═══════════════════════════════════════════════════
 var VOICE_STATE='idle';
-var commandRecognition=null;
+var commandRecognition=null;  // tenuto per compatibilità stopListening
 var countdownInterval=null;
 var countdownSec=10;
-var accumulatedText='';
 var speechEndTimer=null;
 var silenceTimer=null;
-var mediaRecorder=null;
-var audioChunks=[];
 
 function setState(s){VOICE_STATE=s;updateStateLabel();}
 function updateStateLabel(){
@@ -832,70 +829,132 @@ function startListening(){
 
 function isYoutubeOpen(){var p=document.getElementById('ytPlayer');return p&&p.classList.contains('visible');}
 
+// ═══════════════════════════════════════════════════
+// SISTEMA ASCOLTO — MEDIARECORDER + ANALISI VOLUME
+// Nessun Web Speech API = nessun beep su Android
+// ═══════════════════════════════════════════════════
+var mrStream=null;          // stream microfono attivo
+var mrRecorder=null;        // MediaRecorder attivo
+var mrChunks=[];            // chunk audio raccolti
+var mrAnalyser=null;        // AnalyserNode per rilevare volume
+var mrAnalyserCtx=null;     // AudioContext dedicato all'analisi
+var mrSilenceTimer=null;    // timer silenzio → invia
+var mrWasSpeaking=false;    // l'utente ha parlato almeno una volta
+var mrAnalyserInterval=null;// interval per lettura volume
+var SILENCE_THRESHOLD=12;   // volume sotto questa soglia = silenzio (0-255)
+var SILENCE_DURATION=4000;  // ms di silenzio continuo → invia
+var MIN_SPEECH_MS=400;      // ms minimi di parlato per evitare invii accidentali
+
 function startListeningAttempt(){
-  // Solo 'listening' — blocca riavvio durante thinking/speaking/countdown
   if(VOICE_STATE!=='listening')return;
-
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){startMediaRecorderFallback();return;}
-
-  // Ferma eventuale sessione precedente
-  if(commandRecognition){try{commandRecognition.stop();}catch(e){}commandRecognition=null;}
-
-  commandRecognition=new SR();
-  commandRecognition.continuous=true;       // ← NESSUN RIAVVIO AUTOMATICO = ZERO BEEP
-  commandRecognition.interimResults=false;   // solo risultati finali
-  commandRecognition.lang='it-IT';
-
-  commandRecognition.onresult=function(e){
-    // Prendi solo l'ultimo risultato finale
-    var result=e.results[e.results.length-1];
-    if(!result.isFinal)return;
-    var t=result[0].transcript.trim();
-    if(!t)return;
-    accumulatedText=accumulatedText?accumulatedText+' '+t:t;
-    clearTimeout(speechEndTimer);
-    speechEndTimer=setTimeout(function(){
-      if(VOICE_STATE!=='listening'&&VOICE_STATE!=='countdown')return;
-      var finalText=accumulatedText.trim();accumulatedText='';
-      clearTimeout(silenceTimer);stopListening();goThinking(finalText);
-    },3000); // 3s — più reattivo
-  };
-
-  commandRecognition.onerror=function(err){
-    // 'no-speech' è normale su Android con continuous — ignora
-    if(err.error==='not-allowed'||err.error==='network'){
-      commandRecognition=null;startMediaRecorderFallback();
-    }
-    // altri errori: lascia che onend gestisca
-  };
-
-  commandRecognition.onend=function(){
-    // Con continuous:true, onend scatta SOLO se il sistema forza la chiusura
-    // (es. altra app prende il microfono, timeout di sistema)
-    // Riavvia UNA sola volta con delay, senza beep aggiuntivi
-    if(VOICE_STATE!=='listening')return;
-    commandRecognition=null;
-    setTimeout(function(){
-      if(VOICE_STATE==='listening')startListeningAttempt();
-    },500);
-  };
-
-  try{commandRecognition.start();}
-  catch(e){
-    commandRecognition=null;
-    setTimeout(function(){if(VOICE_STATE==='listening')startListeningAttempt();},500);
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    showSubtitle('aria','Microfono non disponibile su questo browser.');setState('idle');updateMicBtn();return;
   }
+  navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(stream){
+    if(VOICE_STATE!=='listening'){stream.getTracks().forEach(function(t){t.stop();});return;}
+    mrStream=stream;
+    mrChunks=[];
+    mrWasSpeaking=false;
+
+    // Analizzatore volume
+    mrAnalyserCtx=new(window.AudioContext||window.webkitAudioContext)();
+    var source=mrAnalyserCtx.createMediaStreamSource(stream);
+    mrAnalyser=mrAnalyserCtx.createAnalyser();
+    mrAnalyser.fftSize=512;
+    source.connect(mrAnalyser);
+
+    // MediaRecorder
+    var mimeType=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm';
+    mrRecorder=new MediaRecorder(stream,{mimeType:mimeType});
+    mrRecorder.ondataavailable=function(e){if(e.data&&e.data.size>0)mrChunks.push(e.data);};
+    mrRecorder.onstop=function(){
+      // Pulisci stream e analyser
+      if(mrStream){mrStream.getTracks().forEach(function(t){t.stop();});mrStream=null;}
+      if(mrAnalyserCtx){try{mrAnalyserCtx.close();}catch(e){}mrAnalyserCtx=null;}
+      mrAnalyser=null;
+      if(!mrWasSpeaking||!mrChunks.length){
+        // Nessun parlato rilevato — torna in ascolto
+        if(VOICE_STATE==='listening')startListeningAttempt();
+        return;
+      }
+      var blob=new Blob(mrChunks,{type:mimeType});
+      mrChunks=[];
+      goThinkingFromAudio(blob);
+    };
+    mrRecorder.start(100); // chunk ogni 100ms
+
+    // Loop analisi volume
+    var dataArray=new Uint8Array(mrAnalyser.frequencyBinCount);
+    var speechStartTime=null;
+    mrAnalyserInterval=setInterval(function(){
+      if(!mrAnalyser||VOICE_STATE!=='listening'){stopListening();return;}
+      mrAnalyser.getByteFrequencyData(dataArray);
+      var sum=0;for(var i=0;i<dataArray.length;i++)sum+=dataArray[i];
+      var avg=sum/dataArray.length;
+
+      if(avg>SILENCE_THRESHOLD){
+        // Sta parlando
+        if(!speechStartTime)speechStartTime=Date.now();
+        if(Date.now()-speechStartTime>MIN_SPEECH_MS)mrWasSpeaking=true;
+        clearTimeout(mrSilenceTimer);mrSilenceTimer=null;
+        // Resetta anche il silence timer globale (countdown sleep)
+        clearTimeout(silenceTimer);
+        silenceTimer=setTimeout(function(){if(VOICE_STATE==='listening'&&!isYoutubeOpen())startCountdown();},20000);
+      }else{
+        // Silenzio
+        speechStartTime=null;
+        if(mrWasSpeaking&&!mrSilenceTimer){
+          mrSilenceTimer=setTimeout(function(){
+            if(VOICE_STATE==='listening')stopListening();
+          },SILENCE_DURATION);
+        }
+      }
+    },100);
+
+  }).catch(function(err){
+    setState('idle');updateMicBtn();
+    showSubtitle('aria','Non riesco ad accedere al microfono. Controlla i permessi.');
+  });
 }
 
 function stopListening(){
-  clearTimeout(speechEndTimer);
+  clearTimeout(mrSilenceTimer);mrSilenceTimer=null;
+  clearInterval(mrAnalyserInterval);mrAnalyserInterval=null;
+  if(mrRecorder&&mrRecorder.state==='recording'){try{mrRecorder.stop();}catch(e){}mrRecorder=null;}
+  else{
+    // Se il recorder non è attivo, pulisci stream manualmente
+    if(mrStream){mrStream.getTracks().forEach(function(t){t.stop();});mrStream=null;}
+    if(mrAnalyserCtx){try{mrAnalyserCtx.close();}catch(e){}mrAnalyserCtx=null;}
+    mrAnalyser=null;
+  }
   if(commandRecognition){try{commandRecognition.stop();}catch(e){}commandRecognition=null;}
-  if(mediaRecorder&&mediaRecorder.state==='recording'){try{mediaRecorder.stop();}catch(e){}mediaRecorder=null;}
 }
 
-// goThinking: stopListening PRIMA di setState
-// impedisce a onend di riavviare il recognition mentre siamo in thinking
+function goThinkingFromAudio(blob){
+  goThinking(null); // setta stato thinking subito
+  var reader=new FileReader();
+  reader.onloadend=async function(){
+    var b64=reader.result.split(',')[1];
+    var mime=blob.type.split(';')[0]||'audio/webm';
+    try{
+      var res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+(GEMINI_TTS_KEYS[0]||''),{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[
+          {inline_data:{mime_type:mime,data:b64}},
+          {text:'Trascrivi esattamente le parole dette in italiano. Rispondi solo con la trascrizione, nessun altro testo.'}
+        ]}]})
+      });
+      var data=await res.json();
+      if(data.error||!data.candidates){setState('idle');updateMicBtn();startListening();return;}
+      var t=data.candidates[0].content.parts[0].text.trim();
+      if(t){addBubble('user',t);showSubtitle('user',t);conversationHistory.push({role:'user',content:t});askAriaFromTranscript(t);}
+      else{setState('idle');updateMicBtn();startListening();}
+    }catch(e){setState('idle');updateMicBtn();startListening();}
+  };
+  reader.readAsDataURL(blob);
+}
+
+// goThinking: versione testuale (input da tastiera)
 function goThinking(transcript){
   stopListening();
   clearTimeout(speechEndTimer);
@@ -903,6 +962,40 @@ function goThinking(transcript){
   setState('thinking');
   updateMicBtn();
   if(transcript)askAria(transcript);
+}
+
+// askAriaFromTranscript: chiamato dopo trascrizione audio — bolla utente già aggiunta
+async function askAriaFromTranscript(userMsg){
+  if(!GROQ_KEY){openModal();return;}
+  setState('thinking');addTyping();setEmotion('pensierosa');
+  try{
+    var pendingGrounding=false;
+    if(!detectGroundingTrigger(userMsg)&&conversationHistory.length>=3){
+      var prev='';for(var i=conversationHistory.length-2;i>=0;i--){if(conversationHistory[i].role==='assistant'){prev=conversationHistory[i].content.toLowerCase();break;}}
+      if(/\b(quale città|che città|dove sei|in quale città|in che città|dove ti trovi|da che parte)\b/.test(prev))pendingGrounding=true;
+    }
+    var useGrounding=(detectGroundingTrigger(userMsg)||pendingGrounding)&&GEMINI_TTS_KEYS.length>0;
+    var fullText;
+    if(useGrounding){try{fullText=await callGeminiGrounded();lastProviderUsed='gemini-grounded';}catch(e){fullText=await callGroq();lastProviderUsed='groq';}}
+    else{fullText=await callGroq();lastProviderUsed='groq';}
+    updateProviderBadge();
+    var emoMatch=fullText.match(/\[EMO:([^\]]+)\]/);
+    var emo=emoMatch?emoMatch[1]:'neutra';
+    var cleanText=fullText.replace(/\[EMO:[^\]]+\]/g,'').trim();
+    removeTyping();conversationHistory.push({role:'assistant',content:fullText});setEmotion(emo);
+    if(GEMINI_TTS_KEYS&&GEMINI_TTS_KEYS.length>0&&!ttsRateLimited){
+      if(currentAudio){try{currentAudio.pause();}catch(e){}currentAudio=null;}
+      var ttsPromise=fetchTTS(cleanText).catch(function(e){return(e&&(e.isRateLimit||(e.message&&e.message.indexOf('rate limit')>=0)))?'RATE_LIMITED':null;});
+      goSpeaking();document.getElementById('btnStop').style.display='flex';
+      var wavBuffer=await ttsPromise;
+      if(wavBuffer==='RATE_LIMITED'){
+        ttsRateLimited=true;showSubtitle('aria',cleanText);addBubble('aria','Scusa, ho la voce un po\' affaticata... leggi tu per ora! 😅');
+        document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();
+        clearTimeout(ttsRetryTimeout);ttsRetryTimeout=setTimeout(function(){ttsRateLimited=false;},60000);
+      }else if(wavBuffer){setEmotion('parlando');await playWavBuffer(wavBuffer,emo,cleanText);goIdleAfterSpeaking();}
+      else{showSubtitle('aria',cleanText);document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();}
+    }else{showSubtitle('aria',cleanText);setEmotion(emo||'neutra');goIdleAfterSpeaking();}
+  }catch(err){removeTyping();showSubtitle('aria','⚠️ '+(err.message||'Errore connessione.'));setEmotion('neutra');setState('idle');updateMicBtn();}
 }
 
 // goIdleAfterSpeaking: delay 300ms + check stato
@@ -915,31 +1008,6 @@ function goIdleAfterSpeaking(){
       startListening();
     },300);
   }else{setState('idle');updateMicBtn();}
-}
-
-// ─── FALLBACK MEDIA RECORDER ───
-function startMediaRecorderFallback(){
-  if(!navigator.mediaDevices){setState('idle');updateMicBtn();return;}
-  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
-    audioChunks=[];
-    var mimeType=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm';
-    mediaRecorder=new MediaRecorder(stream,{mimeType:mimeType});
-    mediaRecorder.ondataavailable=function(e){if(e.data.size>0)audioChunks.push(e.data);};
-    mediaRecorder.onstop=function(){stream.getTracks().forEach(function(t){t.stop();});if(!audioChunks.length){setState('idle');updateMicBtn();return;}goThinking(null);transcribeBlob(new Blob(audioChunks,{type:mimeType}));};
-    mediaRecorder.start();
-  }).catch(function(){setState('idle');updateMicBtn();});
-}
-async function transcribeBlob(blob){
-  try{
-    var reader=new FileReader();
-    reader.onloadend=async function(){
-      var b64=reader.result.split(',')[1],mime=blob.type.split(';')[0]||'audio/webm';
-      var res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+(GEMINI_TTS_KEYS[0]||''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:mime,data:b64}},{text:'Trascrivi esattamente le parole dette. Rispondi solo con la trascrizione.'}]}]})});
-      var data=await res.json();if(data.error||!data.candidates){setState('idle');updateMicBtn();return;}
-      var t=data.candidates[0].content.parts[0].text.trim();
-      if(t)askAria(t);else{setState('idle');updateMicBtn();}
-    };reader.readAsDataURL(blob);
-  }catch(e){setState('idle');updateMicBtn();}
 }
 
 // ─── COUNTDOWN ───
