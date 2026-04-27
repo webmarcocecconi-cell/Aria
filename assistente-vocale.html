@@ -875,13 +875,15 @@ function startListeningAttempt(){
       if(mrAnalyserCtx){try{mrAnalyserCtx.close();}catch(e){}mrAnalyserCtx=null;}
       mrAnalyser=null;
       if(!mrWasSpeaking||!mrChunks.length){
-        // Nessun parlato rilevato — torna in ascolto
+        // Nessun parlato — riavvia solo se ancora in listening, altrimenti lascia stare
+        mrChunks=[];
         if(VOICE_STATE==='listening')startListeningAttempt();
         return;
       }
       var blob=new Blob(mrChunks,{type:mimeType});
       mrChunks=[];
-      goThinkingFromAudio(blob);
+      // Invia audio solo se siamo ancora in uno stato valido
+      if(VOICE_STATE==='listening'||VOICE_STATE==='countdown')goThinkingFromAudio(blob);
     };
     mrRecorder.start(100); // chunk ogni 100ms
 
@@ -889,7 +891,14 @@ function startListeningAttempt(){
     var dataArray=new Uint8Array(mrAnalyser.frequencyBinCount);
     var speechStartTime=null;
     mrAnalyserInterval=setInterval(function(){
-      if(!mrAnalyser||VOICE_STATE!=='listening'){stopListening();return;}
+      if(!mrAnalyser){clearInterval(mrAnalyserInterval);mrAnalyserInterval=null;return;}
+      if(VOICE_STATE!=='listening'){
+        // Se non siamo in listening, ferma l'interval ma non chiamare stopListening
+        // (potrebbe interrompere countdown/sleeping/speaking in corso)
+        clearInterval(mrAnalyserInterval);mrAnalyserInterval=null;
+        if(mrRecorder&&mrRecorder.state==='recording'){try{mrRecorder.stop();}catch(e){}}
+        return;
+      }
       mrAnalyser.getByteFrequencyData(dataArray);
       var sum=0;for(var i=0;i<dataArray.length;i++)sum+=dataArray[i];
       var avg=sum/dataArray.length;
