@@ -471,7 +471,8 @@ function startAriaAfterOnboarding(isNew){
   var name=userProfile.name||'amica',pronoun=userProfile.gender==='F'?'a':'o';
   var greeting=isNew?'Ciao '+name+'! Sono ARIA, sono felice di conoscerti! 💜':'Bentornat'+pronoun+' '+name+'! 💜';
   addBubble('aria',greeting);setEmotion('felice');showSubtitle('aria',greeting);
-  initSpeechRecognition();startListening();updateStateLabel();
+  initSpeechRecognition();updateStateLabel();setState('speaking');
+  playShortTTS(greeting,function(){startListening();});
 }
 
 function unlockAudio(){
