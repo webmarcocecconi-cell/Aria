@@ -1493,7 +1493,8 @@ function getPromptMateria(materia){
 
 async function analizzaCompito(){
   if(!compitiImageBase64)return;
-  var key=GEMINI_TTS_KEYS[0];
+  var key=GEMINI_TTS_KEYS[geminiTtsKeyIndex]||GEMINI_TTS_KEYS[0];
+  console.log('[Compiti] Uso chiave Gemini index',geminiTtsKeyIndex,'mime:',compitiImageMime,'base64 len:',compitiImageBase64?compitiImageBase64.length:0);
   if(!key){
     closeCompitiModal();
     var em='Ho bisogno della chiave Gemini per analizzare le immagini!';
@@ -1516,8 +1517,12 @@ async function analizzaCompito(){
   var materiaExtra=getPromptMateria(materia);
 
   var prompt='Sei ARIA, assistente scolastica. Aiuti '+name+', '+livello+(materia?'\nMateria: '+materia:'')+materiaExtra
-    +'\n\nAnalizza questa immagine scolastica.\n\nRispondi SOLO con JSON valido:\n'
-    +'{"materia":"nome materia","titolo":"titolo max 5 parole",'
+    +'\n\nHai ricevuto un\'immagine scolastica. Segui questi due passi nell\'ordine:\n'
+    +'PASSO 1 — OCR: Trascrivi fedelmente tutto il testo visibile nell\'immagine (testo stampato, scritto a mano, formule, numeri, titoli, istruzioni). Se non c\'e\' testo scrivi "nessun testo".\n'
+    +'PASSO 2 — ANALISI: Basandoti sull\'immagine E sul testo trascritto, analizza il contenuto scolastico.\n'
+    +'\nRispondi SOLO con JSON valido (nessun testo fuori dal JSON):\n'
+    +'{"testo_estratto":"testo OCR trascritto dal passo 1",'
+    +'"materia":"nome materia","titolo":"titolo max 5 parole",'
     +'"tipo_mappa":"radiale o lineare (lineare per matematica/sequenze, radiale per storia/scienze/geo)",'
     +'"spiegazione":"spiegazione completa adatta alla eta",'
     +'"vocale":"intro vocale max 2 frasi, tono caldo",'
@@ -1527,17 +1532,45 @@ async function analizzaCompito(){
     +'\nPassi: 3-4. Mappa: 3-5 nodi. Quiz: 3 domande con 3 opzioni, "corretta" e indice 0-2. Tutto in italiano.';
 
   try{
-    var body={contents:[{parts:[{inline_data:{mime_type:compitiImageMime,data:compitiImageBase64}},{text:prompt}]}],generationConfig:{maxOutputTokens:1200,temperature:0.35}};
+    var body={contents:[{parts:[{inline_data:{mime_type:compitiImageMime,data:compitiImageBase64}},{text:prompt}]}],generationConfig:{maxOutputTokens:1800,temperature:0.25}};
     var res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     var data=await res.json();
     document.getElementById('btnCompiti').disabled=false;
-    if(data.error)throw new Error(data.error.message);
-    var raw=(data.candidates[0].content.parts[0].text||'').trim();
+
+    if(data.error){
+      console.error('[Compiti] Errore API Gemini:', data.error);
+      throw new Error('API: '+data.error.message);
+    }
+
+    var candidate=data.candidates&&data.candidates[0];
+    if(!candidate){
+      console.error('[Compiti] Nessun candidate nella risposta:', JSON.stringify(data));
+      throw new Error('Nessuna risposta dal modello');
+    }
+
+    var raw=((candidate.content&&candidate.content.parts&&candidate.content.parts[0]&&candidate.content.parts[0].text)||'').trim();
+    console.log('[Compiti] Risposta raw:', raw.substring(0,300));
+
+    if(!raw){
+      var reason=candidate.finishReason||'sconosciuto';
+      console.error('[Compiti] Testo vuoto. finishReason:', reason);
+      throw new Error('Risposta vuota (finishReason: '+reason+')');
+    }
+
     var jsonStr=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-    var parsed=JSON.parse(jsonStr);
+    var parsed;
+    try{
+      parsed=JSON.parse(jsonStr);
+    }catch(parseErr){
+      console.error('[Compiti] Errore parsing JSON:', parseErr.message, '\nStringa:', jsonStr.substring(0,300));
+      throw new Error('Risposta non in formato JSON valido');
+    }
     removeTyping();
 
-    addBubble('user','\ud83d\udcf8 Compito di '+(parsed.materia||'?')+': '+(parsed.titolo||'analisi'));
+    addBubble('user','\ud83d\udcf8 Compito di '+(parsed.materia||'?')+': '+(parsed.titolo||'analisi')
+      +(parsed.testo_estratto&&parsed.testo_estratto!=='nessun testo'
+        ?'<br><span style="font-size:0.72rem;opacity:0.55;display:block;margin-top:4px;">📝 '+parsed.testo_estratto.substring(0,120)+(parsed.testo_estratto.length>120?'…':'')+'</span>'
+        :''));
     var testoVocale=parsed.vocale||'Ecco cosa ho trovato!';
     conversationHistory.push({role:'user',content:'[Immagine compito: '+(parsed.materia||'')+' — '+(parsed.titolo||'')+']'});
     conversationHistory.push({role:'assistant',content:testoVocale});
@@ -1560,9 +1593,11 @@ async function analizzaCompito(){
     }else{goIdleAfterSpeaking();}
 
   }catch(err){
+    console.error('[Compiti] Errore catch finale:', err.message||err);
     document.getElementById('btnCompiti').disabled=false;removeTyping();
-    var em2='Non sono riuscita a leggere l\'immagine. Prova con una foto piu nitida!';
-    addBubble('aria',em2);showSubtitle('aria',em2);setState('speaking');
+    var em2='Ops, qualcosa non ha funzionato. Riprova tra un momento!';
+    addBubble('aria',em2+' <span style="font-size:0.75rem;opacity:0.5;">('+((err&&err.message)||'errore sconosciuto')+')</span>');
+    showSubtitle('aria',em2);setState('speaking');
     playShortTTS(em2,function(){goIdleAfterSpeaking();});
   }
   compitiImageBase64=null;
