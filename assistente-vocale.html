@@ -1513,14 +1513,8 @@ async function analizzaCompito(){
               'studente di '+age+' anni. Linguaggio preciso.';
   var materiaExtra=getPromptMateria(materia);
 
-  var prompt='Sei ARIA, assistente scolastica. Aiuti '+name+', '+livello+(materia?'
-Materia: '+materia:'')+materiaExtra
-    +'
-
-Analizza questa immagine scolastica.
-
-Rispondi SOLO con JSON valido:
-'
+  var prompt='Sei ARIA, assistente scolastica. Aiuti '+name+', '+livello+(materia?'\nMateria: '+materia:'')+materiaExtra
+    +'\n\nAnalizza questa immagine scolastica.\n\nRispondi SOLO con JSON valido:\n'
     +'{"materia":"nome materia","titolo":"titolo max 5 parole",'
     +'"tipo_mappa":"radiale o lineare (lineare per matematica/sequenze, radiale per storia/scienze/geo)",'
     +'"spiegazione":"spiegazione completa adatta alla eta",'
@@ -1528,8 +1522,7 @@ Rispondi SOLO con JSON valido:
     +'"passi":[{"titolo":"Passo 1","testo":"spiegazione 2-3 frasi","tts":"versione breve da dire"}],'
     +'"mappa":[{"titolo":"nodo","dettaglio":"spiegazione breve"}],'
     +'"quiz":[{"domanda":"domanda?","opzioni":["giusta","sbagliata1","sbagliata2"],"corretta":0,"feedback":"Bravo perche..."}]}'
-    +'
-Passi: 3-4. Mappa: 3-5 nodi. Quiz: 3 domande con 3 opzioni, "corretta" e indice 0-2. Tutto in italiano.';
+    +'\nPassi: 3-4. Mappa: 3-5 nodi. Quiz: 3 domande con 3 opzioni, "corretta" e indice 0-2. Tutto in italiano.';
 
   try{
     var body={contents:[{parts:[{inline_data:{mime_type:compitiImageMime,data:compitiImageBase64}},{text:prompt}]}],generationConfig:{maxOutputTokens:1200,temperature:0.35}};
@@ -1853,29 +1846,19 @@ async function _elaboraRipetizione(){
     trEl.style.display='block';
     // Step 2: valuta con Gemini
     var age=parseInt(userProfile.age)||10;
-    var punti=(_mappaData.nodi||[]).map(function(n){return n.titolo+(n.dettaglio?': '+n.dettaglio:'');}).join('
-');
+    var punti=(_mappaData.nodi||[]).map(function(n){return n.titolo+(n.dettaglio?': '+n.dettaglio:'');}).join('\n');
     var livello=age<=10?'bambino di '+age+' anni. Sii incoraggiante e gentile, evidenzia prima le cose giuste.':
                 age<=15?'ragazzo/a di '+age+' anni. Tono da insegnante amichevole.':
                 'studente di '+age+' anni. Valutazione precisa.';
     var vPrompt='Hai ascoltato uno studente ripetere un argomento. Stai aiutando un '+livello
-      +'
-
-ARGOMENTO: '+(_mappaData.titolo||'')
-      +'
-PUNTI CHIAVE che doveva coprire:
-'+punti
-      +'
-QUELLO CHE HA DETTO LO STUDENTE:
-'+trascrizione
-      +'
-Valuta la ripetizione. Rispondi SOLO con JSON:
-'
+      +'\n\nARGOMENTO: '+(_mappaData.titolo||'')
+      +'\nPUNTI CHIAVE che doveva coprire:\n'+punti
+      +'\nQUELLO CHE HA DETTO LO STUDENTE:\n'+trascrizione
+      +'\nValuta la ripetizione. Rispondi SOLO con JSON:\n'
       +'{"punteggio":0-100,"punti_ok":["cosa ha detto bene"],"punti_mancanti":["cosa ha dimenticato"],'
       +'"imprecisioni":["eventuali cose dette in modo impreciso o sbagliato"],'
       +'"vocale":"feedback da dire ad alta voce, max 3 frasi, tono '+( age<=10?'incoraggiante e giocoso':'diretto ma costruttivo')+'","emoji":"'+( age<=10?'stella o trofeo':'ok o studio')+'"}'
-      +'
-Se ha detto tutto: punteggio 90-100. Se ha detto la maggior parte: 70-89. Se ha detto poco: sotto 70. Rispondi in italiano.';
+      +'\nSe ha detto tutto: punteggio 90-100. Se ha detto la maggior parte: 70-89. Se ha detto poco: sotto 70. Rispondi in italiano.';
     try{
       var vres=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{
         method:'POST',headers:{'Content-Type':'application/json'},
