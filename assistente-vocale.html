@@ -1486,9 +1486,7 @@ function getPromptMateria(materia){
     inglese:'INGLESE: identifica struttura grammaticale (tense, form). Esempi di ogni regola. Includi traduzione italiana.',
     geografia:'GEOGRAFIA: colloca geograficamente. Caratteristiche fisiche, climatiche, umane. Collega alla vita quotidiana.'
   };
-  return materia&&extra[materia]?('
-
-SPECIALIZZAZIONE — '+extra[materia]):'';
+  return materia&&extra[materia]?('\n\nSPECIALIZZAZIONE — '+extra[materia]):'';
 }
 
 async function analizzaCompito(){
