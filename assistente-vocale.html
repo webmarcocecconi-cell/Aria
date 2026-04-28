@@ -7,8 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d0f1a; --surface: #161829; --card: #1e2035; --accent: #7c6dfa;
-    --accent2: #f472b6; --accent3: #34d399; --text: #e8eaf6; --muted: #6b7280;
+    --bg: #f0ece8; --surface: #e8e4e0; --card: #dedad6; --accent: #7c6dfa;
+    --accent2: #f472b6; --accent3: #34d399; --text: #1a1a2e; --muted: #6b7280;
     --eye-white: #f0f4ff; --eye-iris: #7c6dfa; --eye-pupil: #0d0f1a;
     --border: rgba(124,109,250,0.2); --state-listening: #34d399;
     --state-thinking: #fbbf24; --state-speaking: #f472b6; --state-countdown: #7c6dfa;
@@ -19,7 +19,7 @@
   @keyframes aura { 0% { filter:hue-rotate(0deg); } 100% { filter:hue-rotate(30deg); } }
   header { position:relative; z-index:2; text-align:center; padding:28px 20px 10px; }
   header .logo { font-family:'Space Mono',monospace; font-size:2rem; font-weight:700; letter-spacing:4px; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-  .face-container { position:relative; z-index:2; margin:20px auto; width:240px; height:280px; background:transparent; border-radius:20px; border:2px solid var(--border); box-shadow:0 0 40px rgba(124,109,250,0.15),0 0 80px rgba(124,109,250,0.08); overflow:visible; transition:box-shadow 0.4s ease; }
+  .face-container { position:relative; z-index:2; margin:20px auto; width:260px; height:300px; background:transparent; border-radius:16px; border:2px solid var(--border); box-shadow:0 0 40px rgba(124,109,250,0.15),0 0 80px rgba(124,109,250,0.08); overflow:hidden; transition:box-shadow 0.4s ease; }
   .face-container.thinking { box-shadow:0 0 50px rgba(251,191,36,0.35),0 0 100px rgba(251,191,36,0.15); border-color:rgba(251,191,36,0.5); }
   .face-container.speaking { box-shadow:0 0 50px rgba(244,114,182,0.45),0 0 100px rgba(244,114,182,0.2); border-color:rgba(244,114,182,0.6); animation:pulse-face 0.6s ease-in-out infinite alternate; }
   .face-container.happy { box-shadow:0 0 40px rgba(124,109,250,0.35),0 0 80px rgba(124,109,250,0.18); }
@@ -165,7 +165,7 @@
     header .logo { font-size:1.2rem; }
     header .tagline { display:none; }
     .face-col { display:flex; flex-direction:column; align-items:center; justify-content:center; width:200px; flex-shrink:0; padding:0 8px; }
-    .face-container { width:150px; height:175px; margin:6px auto; border-radius:14px; }
+    .face-container { width:160px; height:185px; margin:6px auto; border-radius:12px; }
     .eye { width:38px; height:46px; }
     .iris { width:24px; height:24px; }
     .pupil { width:11px; height:11px; }
@@ -178,7 +178,7 @@
     .input-area { padding:8px 12px 12px; }
   }
   @media (min-width:600px) and (orientation:portrait) {
-    .face-container { width:260px; height:304px; border-radius:22px; }
+    .face-container { width:280px; height:324px; border-radius:18px; }
     .eye { width:70px; height:84px; }
     .iris { width:44px; height:44px; }
     .pupil { width:21px; height:21px; }
@@ -187,8 +187,7 @@
 
   #ariaSvgFace { position:absolute; inset:0; width:100%; height:100%; }
   #eyeL, #eyeR { display:none !important; }
-  .face-container.sleeping #ariaSvgFace { filter:brightness(0.45) saturate(0.3); transition:filter 0.6s; }
-  /* Fix blink SVG: transform-origin centrato sull'ellisse */
+  .face-container.sleeping #ariaSvgFace { filter:brightness(0.5) saturate(0.3); transition:filter 0.6s; }
   #svgEyeL ellipse, #svgEyeR ellipse { transform-box:fill-box; transform-origin:center; }
 </style>
 </head>
@@ -288,72 +287,72 @@
 <div class="face-container" id="face">
   <div class="listen-ring"></div>
   <div class="think-ring"></div>
-  <svg id="ariaSvgFace" viewBox="0 0 240 280" xmlns="http://www.w3.org/2000/svg">
+  <svg id="ariaSvgFace" viewBox="0 0 260 300" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <radialGradient id="asg" cx="50%" cy="42%" r="55%"><stop offset="0%" stop-color="#fde8d8"/><stop offset="100%" stop-color="#f5c9a8"/></radialGradient>
-      <radialGradient id="ang" cx="40%" cy="30%" r="65%"><stop offset="0%" stop-color="#fde0c8"/><stop offset="60%" stop-color="#f0bc90"/><stop offset="100%" stop-color="#d8986a"/></radialGradient>
+      <radialGradient id="ahg" cx="45%" cy="20%" r="70%"><stop offset="0%" stop-color="#3a3030"/><stop offset="55%" stop-color="#181010"/><stop offset="100%" stop-color="#060404"/></radialGradient>
+      <radialGradient id="afg" cx="50%" cy="0%" r="100%"><stop offset="0%" stop-color="#2a2020"/><stop offset="100%" stop-color="#060404"/></radialGradient>
+      <radialGradient id="ang" cx="35%" cy="30%" r="65%"><stop offset="0%" stop-color="#fde0c8"/><stop offset="60%" stop-color="#f0bc90"/><stop offset="100%" stop-color="#d8986a"/></radialGradient>
       <radialGradient id="abL" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#f4a0b0" stop-opacity="0.45"/><stop offset="100%" stop-color="#f4a0b0" stop-opacity="0"/></radialGradient>
-      <radialGradient id="abR" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#f4a0b0" stop-opacity="0.45"/><stop offset="100%" stop-color="#f4a0b0" stop-opacity="0"/></radialGradient>
-      <radialGradient id="aiL" cx="35%" cy="30%" r="60%"><stop offset="0%" stop-color="#c4b5fd"/><stop offset="50%" stop-color="#7c6dfa"/><stop offset="100%" stop-color="#4c1d95"/></radialGradient>
-      <radialGradient id="aiR" cx="35%" cy="30%" r="60%"><stop offset="0%" stop-color="#c4b5fd"/><stop offset="50%" stop-color="#7c6dfa"/><stop offset="100%" stop-color="#4c1d95"/></radialGradient>
-      <radialGradient id="ahg" cx="50%" cy="25%" r="65%"><stop offset="0%" stop-color="#383030"/><stop offset="60%" stop-color="#181010"/><stop offset="100%" stop-color="#080505"/></radialGradient>
-      <radialGradient id="afg" cx="50%" cy="0%" r="100%"><stop offset="0%" stop-color="#2a2020"/><stop offset="100%" stop-color="#080505"/></radialGradient>
+      <radialGradient id="aiL" cx="35%" cy="30%" r="60%"><stop offset="0%" stop-color="#a0724a"/><stop offset="50%" stop-color="#6b3a18"/><stop offset="100%" stop-color="#2a0e05"/></radialGradient>
+      <radialGradient id="aiR" cx="35%" cy="30%" r="60%"><stop offset="0%" stop-color="#a0724a"/><stop offset="50%" stop-color="#6b3a18"/><stop offset="100%" stop-color="#2a0e05"/></radialGradient>
       <filter id="asb"><feGaussianBlur stdDeviation="1.5"/></filter>
     </defs>
-    <!-- Alone capelli per separarli dallo sfondo scuro -->
-    <path d="M55,148 C53,118 60,85 75,62 C87,44 102,33 120,30 C138,33 153,44 165,62 C180,85 187,118 185,148 C184,172 180,196 173,214 C165,230 155,238 143,241 C136,243 128,244 120,244 C112,244 104,243 97,241 C85,238 75,230 67,214 C60,196 56,172 55,148 Z" fill="none" stroke="#4a3a3a" stroke-width="3" opacity="0.8"/>
-    <!-- Capelli -->
-    <path d="M55,148 C53,118 60,85 75,62 C87,44 102,33 120,30 C138,33 153,44 165,62 C180,85 187,118 185,148 C184,172 180,196 173,214 C165,230 155,238 143,241 C136,243 128,244 120,244 C112,244 104,243 97,241 C85,238 75,230 67,214 C60,196 56,172 55,148 Z" fill="url(#ahg)"/>
-    <!-- Collo -->
-    <path d="M94,228 C93,244 97,260 103,270 C109,273 114,274 120,274 C126,274 131,273 137,270 C143,260 147,244 146,228 C138,236 129,240 120,240 C111,240 102,236 94,228 Z" fill="url(#ang)"/>
-    <!-- Viso -->
-    <ellipse cx="120" cy="148" rx="58" ry="78" fill="url(#asg)"/>
+    <!-- Capelli fondo piatto -->
+    <path d="M28,168 C26,130 36,88 58,62 C74,42 96,28 130,25 C164,28 186,42 202,62 C224,88 234,130 232,168 L232,284 L28,284 Z" fill="url(#ahg)"/>
+    <!-- Collo trapezoidale morbido sopra i capelli -->
+    <path d="M104,228 C102,240 100,258 100,278 L160,278 C160,258 158,240 156,228 C150,234 142,238 130,238 C118,238 110,234 104,228 Z" fill="url(#ang)"/>
+    <path d="M104,230 C102,244 100,260 100,278 L106,278 C106,260 106,244 106,232 Z" fill="#b87848" opacity="0.15"/>
+    <!-- Viso ellisse sopra tutto -->
+    <ellipse cx="130" cy="158" rx="62" ry="80" fill="url(#asg)"/>
+    <path d="M68,158 C68,120 82,90 104,76 C84,90 72,122 72,158 C72,184 78,208 90,226 Z" fill="#d8956a" opacity="0.09"/>
     <!-- Guance -->
-    <ellipse cx="73" cy="162" rx="18" ry="11" fill="url(#abL)" filter="url(#asb)"/>
-    <ellipse cx="167" cy="162" rx="18" ry="11" fill="url(#abR)" filter="url(#asb)"/>
+    <ellipse cx="80" cy="174" rx="20" ry="13" fill="url(#abL)" filter="url(#asb)"/>
+    <ellipse cx="180" cy="174" rx="20" ry="13" fill="url(#abL)" filter="url(#asb)"/>
     <!-- Sopracciglia -->
-    <path d="M85,118 C90,113 100,111 111,113" fill="none" stroke="#1a0a0a" stroke-width="2.8" stroke-linecap="round"/>
-    <path d="M129,113 C140,111 150,113 155,118" fill="none" stroke="#1a0a0a" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M92,122 C98,116 110,113 122,115" fill="none" stroke="#1a0808" stroke-width="3" stroke-linecap="round"/>
+    <path d="M138,115 C150,113 162,116 168,122" fill="none" stroke="#1a0808" stroke-width="3" stroke-linecap="round"/>
     <!-- Occhio sinistro -->
     <g id="svgEyeL">
-      <ellipse cx="99" cy="134" rx="17" ry="15" fill="white"/>
-      <circle id="irisL_svg" cx="99" cy="135" r="11" fill="url(#aiL)"/>
-      <circle id="pupilL_svg" cx="99" cy="135" r="5.5" fill="#1a0a3a"/>
-      <circle id="refL1_svg" cx="94" cy="130" r="3.5" fill="white" opacity="0.9"/>
-      <circle id="refL2_svg" cx="104" cy="139" r="2" fill="white" opacity="0.45"/>
-      <path d="M82,127 C88,117 110,117 116,127" fill="none" stroke="#1a0808" stroke-width="3.5" stroke-linecap="round"/>
-      <path d="M82,127 C79,121 77,116 76,111" fill="none" stroke="#1a0808" stroke-width="2.2" stroke-linecap="round"/>
-      <path d="M85,124 C83,118 82,113 82,108" fill="none" stroke="#1a0808" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="109" cy="140" rx="18" ry="16" fill="white"/>
+      <circle id="irisL_svg" cx="109" cy="141" r="12" fill="url(#aiL)"/>
+      <circle id="pupilL_svg" cx="109" cy="141" r="6" fill="#140805"/>
+      <circle id="refL1_svg" cx="104" cy="136" r="4" fill="white" opacity="0.88"/>
+      <circle id="refL2_svg" cx="114" cy="146" r="2" fill="white" opacity="0.4"/>
+      <path d="M91,133 C98,121 120,121 127,133" fill="none" stroke="#0e0606" stroke-width="4" stroke-linecap="round"/>
+      <path d="M91,133 C87,126 85,119 84,113" fill="none" stroke="#0e0606" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M95,130 C92,123 91,116 91,110" fill="none" stroke="#0e0606" stroke-width="2" stroke-linecap="round"/>
     </g>
     <!-- Occhio destro -->
     <g id="svgEyeR">
-      <ellipse cx="141" cy="134" rx="17" ry="15" fill="white"/>
-      <circle id="irisR_svg" cx="141" cy="135" r="11" fill="url(#aiR)"/>
-      <circle id="pupilR_svg" cx="141" cy="135" r="5.5" fill="#1a0a3a"/>
-      <circle id="refR1_svg" cx="136" cy="130" r="3.5" fill="white" opacity="0.9"/>
-      <circle id="refR2_svg" cx="146" cy="139" r="2" fill="white" opacity="0.45"/>
-      <path d="M124,127 C130,117 152,117 158,127" fill="none" stroke="#1a0808" stroke-width="3.5" stroke-linecap="round"/>
-      <path d="M158,127 C161,121 163,116 164,111" fill="none" stroke="#1a0808" stroke-width="2.2" stroke-linecap="round"/>
-      <path d="M155,124 C157,118 158,113 158,108" fill="none" stroke="#1a0808" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="151" cy="140" rx="18" ry="16" fill="white"/>
+      <circle id="irisR_svg" cx="151" cy="141" r="12" fill="url(#aiR)"/>
+      <circle id="pupilR_svg" cx="151" cy="141" r="6" fill="#140805"/>
+      <circle id="refR1_svg" cx="146" cy="136" r="4" fill="white" opacity="0.88"/>
+      <circle id="refR2_svg" cx="156" cy="146" r="2" fill="white" opacity="0.4"/>
+      <path d="M133,133 C140,121 162,121 169,133" fill="none" stroke="#0e0606" stroke-width="4" stroke-linecap="round"/>
+      <path d="M169,133 C173,126 175,119 176,113" fill="none" stroke="#0e0606" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M165,130 C168,123 169,116 169,110" fill="none" stroke="#0e0606" stroke-width="2" stroke-linecap="round"/>
     </g>
     <!-- Naso -->
-    <path d="M116,170 C116,174 120,176 124,173" fill="none" stroke="#c8845a" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M126,178 C126,182 130,184 134,181" fill="none" stroke="#c8845a" stroke-width="2" stroke-linecap="round"/>
     <!-- Bocca -->
     <g id="svgMouth">
-      <ellipse id="mouthInner" cx="120" cy="197" rx="16" ry="8" fill="#3a0e18" opacity="0"/>
-      <rect id="teeth" x="107" y="191" width="26" height="8" rx="4" fill="#fffef5" opacity="0"/>
-      <path id="lipTop" d="M103,190 Q111,185 120,186 Q129,185 137,190 Q129,188 120,188 Q111,188 103,190 Z" fill="#d4607a"/>
-      <path id="lipBot" d="M103,190 Q111,198 120,199 Q129,198 137,190 Q129,195 120,196 Q111,195 103,190 Z" fill="#e87090"/>
-      <path id="mouthPath" d="M103,190 Q120,198 137,190" fill="none" stroke="#b8435e" stroke-width="1.5" stroke-linecap="round"/>
+      <ellipse id="mouthInner" cx="130" cy="204" rx="16" ry="8" fill="#3a0e18" opacity="0"/>
+      <rect id="teeth" x="117" y="198" width="26" height="8" rx="4" fill="#fffef5" opacity="0"/>
+      <path id="lipTop" d="M110,200 Q118,195 130,196 Q142,195 150,200 Q142,198 130,198 Q118,198 110,200 Z" fill="#d4607a"/>
+      <path id="lipBot" d="M110,200 Q118,208 130,209 Q142,208 150,200 Q142,205 130,206 Q118,205 110,200 Z" fill="#e87090"/>
+      <path id="mouthPath" d="M110,200 Q130,208 150,200" fill="none" stroke="none" stroke-width="0"/>
     </g>
-    <!-- Frangetta solida unico path -->
-    <path d="M62,122 L62,96 C65,86 70,76 78,68 C86,59 96,53 107,49 C113,47 116,46 120,46 C124,46 127,47 133,49 C144,53 154,59 162,68 C170,76 175,86 178,96 L178,122 C170,117 160,113 148,111 C140,109 131,109 120,109 C109,109 100,109 92,111 C80,113 70,117 62,122 Z" fill="url(#afg)"/>
-    <!-- Orecchino sx -->
-    <circle cx="57" cy="162" r="3.5" fill="#fbbf24"/><circle cx="57" cy="162" r="2" fill="#f59e0b"/><circle cx="56" cy="161" r="1" fill="white" opacity="0.7"/>
-    <!-- Orecchino dx -->
-    <circle cx="183" cy="162" r="3.5" fill="#fbbf24"/><circle cx="183" cy="162" r="2" fill="#f59e0b"/><circle cx="182" cy="161" r="1" fill="white" opacity="0.7"/>
+    <!-- Frangetta solida -->
+    <path d="M68,128 L68,98 C72,86 78,75 88,66 C98,56 112,49 124,46 C127,45 129,44 130,44 C131,44 133,45 136,46 C148,49 162,56 172,66 C182,75 188,86 192,98 L192,128 C182,122 168,117 154,114 C145,112 138,111 130,111 C122,111 115,112 106,114 C92,117 78,122 68,128 Z" fill="url(#afg)"/>
+    <!-- Highlight capelli -->
+    <path d="M100,48 C96,64 94,82 96,100 C102,84 104,66 106,52 Z" fill="#6060a0" opacity="0.13"/>
+    <path d="M156,46 C162,62 164,80 162,98 C156,82 154,64 152,50 Z" fill="#6060a0" opacity="0.11"/>
+    <!-- Orecchini -->
+    <circle cx="68" cy="168" r="4" fill="#fbbf24"/><circle cx="68" cy="168" r="2.5" fill="#f59e0b"/><circle cx="67" cy="166" r="1.2" fill="white" opacity="0.7"/>
+    <circle cx="192" cy="168" r="4" fill="#fbbf24"/><circle cx="192" cy="168" r="2.5" fill="#f59e0b"/><circle cx="191" cy="166" r="1.2" fill="white" opacity="0.7"/>
   </svg>
-  <!-- Overlay vuoti per compatibilità JS esistente -->
   <div class="eye left" id="eyeL" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;"><div class="iris" id="irisL"><div class="pupil"></div></div><div class="reflection"></div></div>
   <div class="eye right" id="eyeR" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;"><div class="iris" id="irisR"><div class="pupil"></div></div><div class="reflection"></div></div>
 </div>
@@ -634,26 +633,24 @@ function setEmotion(emo){
   animateMouth(emo);
 }
 function animateMouth(emo){
-  var mp=document.getElementById('mouthPath');
   var lt=document.getElementById('lipTop');
   var lb=document.getElementById('lipBot');
   var mi=document.getElementById('mouthInner');
   var te=document.getElementById('teeth');
-  if(!mp)return;
+  if(!lt)return;
   var M={
-    'felice':    {p:'M103,190 Q120,200 137,190',lt:'M103,190 Q111,185 120,186 Q129,185 137,190 Q129,188 120,188 Q111,188 103,190 Z',lb:'M103,190 Q111,200 120,201 Q129,200 137,190 Q129,196 120,197 Q111,196 103,190 Z',i:0,t:0},
-    'pensierosa':{p:'M106,192 Q118,188 134,193',lt:'M106,192 Q113,189 120,189 Q127,189 134,193 Q127,191 120,191 Q113,191 106,192 Z',lb:'M106,192 Q113,196 120,196 Q127,196 134,193 Q127,195 120,195 Q113,195 106,192 Z',i:0,t:0},
-    'sorpresa':  {p:'M109,189 Q120,189 131,189',lt:'M109,189 Q114,185 120,185 Q126,185 131,189 Q126,187 120,187 Q114,187 109,189 Z',lb:'M109,189 Q114,200 120,201 Q126,200 131,189 Q126,196 120,197 Q114,196 109,189 Z',i:0.6,t:0.7},
-    'empatica':  {p:'M104,191 Q120,198 136,191',lt:'M104,191 Q111,186 120,187 Q129,186 136,191 Q129,189 120,189 Q111,189 104,191 Z',lb:'M104,191 Q111,199 120,200 Q129,199 136,191 Q129,196 120,197 Q111,196 104,191 Z',i:0,t:0},
-    'ascoltando':{p:'M105,191 Q120,195 135,191',lt:'M105,191 Q112,187 120,188 Q128,187 135,191 Q128,189 120,190 Q112,189 105,191 Z',lb:'M105,191 Q112,197 120,197 Q128,197 135,191 Q128,195 120,195 Q112,195 105,191 Z',i:0,t:0},
-    'parlando':  {p:'M103,190 Q120,198 137,190',lt:'M103,190 Q111,185 120,186 Q129,185 137,190 Q129,188 120,188 Q111,188 103,190 Z',lb:'M103,190 Q111,199 120,200 Q129,199 137,190 Q129,196 120,197 Q111,196 103,190 Z',i:0.3,t:0.3},
-    'neutra':    {p:'M105,191 Q120,195 135,191',lt:'M105,191 Q112,187 120,188 Q128,187 135,191 Q128,189 120,190 Q112,189 105,191 Z',lb:'M105,191 Q112,197 120,197 Q128,197 135,191 Q128,195 120,195 Q112,195 105,191 Z',i:0,t:0},
-    'dormendo':  {p:'M110,192 Q120,194 130,192',lt:'M110,192 Q115,190 120,190 Q125,190 130,192 Q125,191 120,191 Q115,191 110,192 Z',lb:'M110,192 Q115,195 120,195 Q125,195 130,192 Q125,194 120,194 Q115,194 110,192 Z',i:0,t:0}
+    'felice':    {lt:'M110,200 Q118,195 130,196 Q142,195 150,200 Q142,198 130,198 Q118,198 110,200 Z',lb:'M110,200 Q118,210 130,211 Q142,210 150,200 Q142,206 130,207 Q118,206 110,200 Z',i:0,t:0},
+    'pensierosa':{lt:'M113,202 Q121,199 130,199 Q139,199 147,202 Q139,201 130,201 Q121,201 113,202 Z',lb:'M113,202 Q121,207 130,207 Q139,207 147,202 Q139,205 130,205 Q121,205 113,202 Z',i:0,t:0},
+    'sorpresa':  {lt:'M115,199 Q122,193 130,193 Q138,193 145,199 Q138,196 130,196 Q122,196 115,199 Z',lb:'M115,199 Q122,210 130,212 Q138,210 145,199 Q138,207 130,208 Q122,207 115,199 Z',i:0.6,t:0.6},
+    'empatica':  {lt:'M111,201 Q119,196 130,197 Q141,196 149,201 Q141,199 130,199 Q119,199 111,201 Z',lb:'M111,201 Q119,209 130,210 Q141,209 149,201 Q141,206 130,207 Q119,206 111,201 Z',i:0,t:0},
+    'ascoltando':{lt:'M112,201 Q120,197 130,198 Q140,197 148,201 Q140,199 130,200 Q120,199 112,201 Z',lb:'M112,201 Q120,207 130,208 Q140,207 148,201 Q140,205 130,206 Q120,205 112,201 Z',i:0,t:0},
+    'parlando':  {lt:'M110,200 Q118,195 130,196 Q142,195 150,200 Q142,198 130,198 Q118,198 110,200 Z',lb:'M110,200 Q118,209 130,210 Q142,209 150,200 Q142,205 130,206 Q118,205 110,200 Z',i:0.3,t:0.3},
+    'neutra':    {lt:'M112,201 Q120,197 130,198 Q140,197 148,201 Q140,199 130,200 Q120,199 112,201 Z',lb:'M112,201 Q120,207 130,208 Q140,207 148,201 Q140,205 130,206 Q120,205 112,201 Z',i:0,t:0},
+    'dormendo':  {lt:'M116,202 Q123,200 130,200 Q137,200 144,202 Q137,201 130,201 Q123,201 116,202 Z',lb:'M116,202 Q123,205 130,205 Q137,205 144,202 Q137,204 130,204 Q123,204 116,202 Z',i:0,t:0}
   };
   var m=M[emo]||M['neutra'];
-  mp.setAttribute('d',m.p);
-  if(lt)lt.setAttribute('d',m.lt);
-  if(lb)lb.setAttribute('d',m.lb);
+  lt.setAttribute('d',m.lt);
+  lb.setAttribute('d',m.lb);
   if(mi)mi.setAttribute('opacity',m.i);
   if(te)te.setAttribute('opacity',m.t);
   if(emo==='parlando')startMouthTalk();else stopMouthTalk();
@@ -661,35 +658,26 @@ function animateMouth(emo){
 var mouthTalkInterval=null;
 function startMouthTalk(){
   if(mouthTalkInterval)return;
-  var open=false;
-  // Solo due stati: APERTO e CHIUSO — alternanza veloce e visibile
-  var OPEN={
-    p:'M101,187 Q120,208 139,187',
-    lt:'M101,187 Q110,180 120,181 Q130,180 139,187 Q130,183 120,183 Q110,183 101,187 Z',
-    lb:'M101,187 Q110,211 120,213 Q130,211 139,187 Q130,206 120,208 Q110,206 101,187 Z',
-    i:'0.9', t:'0.85'
-  };
-  var SHUT={
-    p:'M107,191 Q120,193 133,191',
-    lt:'M107,191 Q113,189 120,189 Q127,189 133,191 Q127,190 120,190 Q113,190 107,191 Z',
-    lb:'M107,191 Q113,194 120,194 Q127,194 133,191 Q127,193 120,193 Q113,193 107,191 Z',
-    i:'0', t:'0'
-  };
+  var phase=0;
+  var F=[
+    {lt:'M112,201 Q120,197 130,198 Q140,197 148,201 Q140,199 130,200 Q120,199 112,201 Z',lb:'M112,201 Q120,206 130,207 Q140,206 148,201 Q140,204 130,205 Q120,204 112,201 Z',i:'0',t:'0'},
+    {lt:'M110,200 Q118,194 130,195 Q142,194 150,200 Q142,197 130,197 Q118,197 110,200 Z',lb:'M110,200 Q118,209 130,210 Q142,209 150,200 Q142,205 130,206 Q118,205 110,200 Z',i:'0.5',t:'0.45'},
+    {lt:'M109,199 Q117,191 130,192 Q143,191 151,199 Q143,195 130,195 Q117,195 109,199 Z',lb:'M109,199 Q117,212 130,214 Q143,212 151,199 Q143,208 130,210 Q117,208 109,199 Z',i:'0.88',t:'0.82'},
+    {lt:'M110,200 Q118,194 130,195 Q142,194 150,200 Q142,197 130,197 Q118,197 110,200 Z',lb:'M110,200 Q118,209 130,210 Q142,209 150,200 Q142,205 130,206 Q118,205 110,200 Z',i:'0.5',t:'0.45'},
+  ];
   mouthTalkInterval=setInterval(function(){
-    open=!open;
-    var f=open?OPEN:SHUT;
-    var mp=document.getElementById('mouthPath');
+    phase=(phase+1)%F.length;
+    var f=F[phase];
     var lt=document.getElementById('lipTop');
     var lb=document.getElementById('lipBot');
     var te=document.getElementById('teeth');
     var mi=document.getElementById('mouthInner');
-    if(!mp)return;
-    mp.setAttribute('d',f.p);
-    if(lt)lt.setAttribute('d',f.lt);
-    if(lb)lb.setAttribute('d',f.lb);
+    if(!lt)return;
+    lt.setAttribute('d',f.lt);
+    lb.setAttribute('d',f.lb);
     if(te)te.setAttribute('opacity',f.t);
     if(mi)mi.setAttribute('opacity',f.i);
-  },130);
+  },220);
 }
 function stopMouthTalk(){if(mouthTalkInterval){clearInterval(mouthTalkInterval);mouthTalkInterval=null;}}
 
@@ -1239,9 +1227,7 @@ function onAudioUnlocked(){
   }
 }
 </script>
-
 <script>
-// Eye tracking SVG
 function moveSvgEyes(e){
   var svg=document.getElementById('ariaSvgFace');
   if(!svg)return;
@@ -1253,13 +1239,14 @@ function moveSvgEyes(e){
   var mx=2.8;
   dx=Math.max(-1,Math.min(1,dx))*mx;
   dy=Math.max(-1,Math.min(1,dy))*mx;
-  var eyes={svgEyeL:{cx:99,cy:135},svgEyeR:{cx:141,cy:135}};
+  var eyes={svgEyeL:{cx:109,cy:141},svgEyeR:{cx:151,cy:141}};
   Object.keys(eyes).forEach(function(id){
     var c=eyes[id];
-    var iris=document.getElementById(id==='svgEyeL'?'irisL_svg':'irisR_svg');
-    var pupil=document.getElementById(id==='svgEyeL'?'pupilL_svg':'pupilR_svg');
-    var r1=document.getElementById(id==='svgEyeL'?'refL1_svg':'refR1_svg');
-    var r2=document.getElementById(id==='svgEyeL'?'refL2_svg':'refR2_svg');
+    var isL=id==='svgEyeL';
+    var iris=document.getElementById(isL?'irisL_svg':'irisR_svg');
+    var pupil=document.getElementById(isL?'pupilL_svg':'pupilR_svg');
+    var r1=document.getElementById(isL?'refL1_svg':'refR1_svg');
+    var r2=document.getElementById(isL?'refL2_svg':'refR2_svg');
     if(iris){iris.setAttribute('cx',c.cx+dx);iris.setAttribute('cy',c.cy+dy);}
     if(pupil){pupil.setAttribute('cx',c.cx+dx);pupil.setAttribute('cy',c.cy+dy);}
     if(r1){r1.setAttribute('cx',c.cx+dx-5);r1.setAttribute('cy',c.cy+dy-5);}
@@ -1269,23 +1256,17 @@ function moveSvgEyes(e){
 document.addEventListener('mousemove',moveSvgEyes);
 document.addEventListener('touchmove',moveSvgEyes,{passive:true});
 
-// Blink SVG — scaleY centrato, no salto dall'alto
 function doBlinkSvg(){
-  var eyelids=['svgEyeL','svgEyeR'];
-  eyelids.forEach(function(id){
+  ['svgEyeL','svgEyeR'].forEach(function(id){
     var el=document.querySelector('#'+id+' ellipse');
     if(!el)return;
     el.style.transition='transform 0.07s ease-in';
     el.style.transform='scaleY(0.06)';
-    setTimeout(function(){
-      el.style.transition='transform 0.10s ease-out';
-      el.style.transform='scaleY(1)';
-    },90);
+    setTimeout(function(){el.style.transition='transform 0.10s ease-out';el.style.transform='scaleY(1)';},90);
   });
-  // Prossimo blink random tra 3-7s
-  setTimeout(doBlinkSvg, 3000+Math.random()*4000);
+  setTimeout(doBlinkSvg,3000+Math.random()*4000);
 }
-setTimeout(doBlinkSvg, 2000+Math.random()*3000);
+setTimeout(doBlinkSvg,2000+Math.random()*2000);
 </script>
 </body>
 </html>
