@@ -1674,7 +1674,7 @@ function mostraRisultatoQuiz(){
   var eta=parseInt(userProfile.age)||10;
   var label=p===n?(eta<=10?'Perfetto! Sei un campione! \u2b50':'Perfetto! Tutto corretto!'):
             p>=n-1?(eta<=10?'Quasi tutto giusto! Bravo!':'Molto bene!'):
-            p>=Math.floor(n/2)?(eta<=10?'Bene, ci sei quasi!':'Buono, ripassa un po'!'):
+            p>=Math.floor(n/2)?(eta<=10?'Bene, ci sei quasi!':'Buono, ripassa un po\'!'):
             (eta<=10?'Rileggi i passi e riprova!':'Rivedi l\'argomento e riprova.');
   document.getElementById('quizScoreLabel').textContent=label;
   var frase=p===n?'Perfetto, '+(userProfile.name||'')+'! Hai risposto giusto a tutto!':
@@ -1722,7 +1722,7 @@ function apriRipetizione(){
   var sub=age<=10
     ?'Quando sei pronto, premi il tasto verde e prova a raccontarmi tutto quello che ricordi su '+titolo+'! Parla liberamente, senza fretta.'
     :age<=15
-    ?'Premi il tasto verde e spiega tutto quello che sai su '+titolo+'. Parla come se stessi rispondendo a un'interrogazione.'
+    ?'Premi il tasto verde e spiega tutto quello che sai su '+titolo+'. Parla come se stessi rispondendo a un\'interrogazione.'
     :'Premi il tasto verde e ripeti l\'argomento a voce, come se stessi spiegando a qualcuno.';
   document.getElementById('ripetiSub').textContent=sub;
   document.getElementById('ripetiFace').className='ripeti-face';
