@@ -13,37 +13,6 @@
     --border: rgba(124,109,250,0.2); --state-listening: #34d399;
     --state-thinking: #fbbf24; --state-speaking: #f472b6; --state-countdown: #7c6dfa;
   }
-function moveSvgEyes(e){
-  var svg = document.getElementById('ariaSvgFace');
-  if(!svg) return;
-  var rect = svg.getBoundingClientRect();
-  var cx = rect.left + rect.width/2;
-  var cy = rect.top + rect.height/2;
-  var px = e.touches ? e.touches[0].clientX : e.clientX;
-  var py = e.touches ? e.touches[0].clientY : e.clientY;
-  var dx = (px - cx) / (rect.width/2);
-  var dy = (py - cy) / (rect.height/2);
-  var maxMove = 2.5;
-  dx = Math.max(-1,Math.min(1,dx)) * maxMove;
-  dy = Math.max(-1,Math.min(1,dy)) * maxMove;
-  ['svgEyeL','svgEyeR'].forEach(function(id){
-    var g = document.getElementById(id);
-    if(!g) return;
-    var iris = g.querySelector('circle:nth-child(2)');
-    var pupil = g.querySelector('circle:nth-child(3)');
-    var r1 = g.querySelector('circle:nth-child(4)');
-    var r2 = g.querySelector('circle:nth-child(5)');
-    var cx2 = id==='svgEyeL' ? 99 : 141;
-    var cy2 = 131;
-    if(iris){ iris.setAttribute('cx', cx2+dx); iris.setAttribute('cy', cy2+dy); }
-    if(pupil){ pupil.setAttribute('cx', cx2+dx); pupil.setAttribute('cy', cy2+dy); }
-    if(r1){ r1.setAttribute('cx', cx2+dx-4); r1.setAttribute('cy', cy2+dy-4); }
-    if(r2){ r2.setAttribute('cx', cx2+dx+4); r2.setAttribute('cy', cy2+dy+3); }
-  });
-}
-document.addEventListener('mousemove', moveSvgEyes);
-document.addEventListener('touchmove', moveSvgEyes, {passive:true});
-
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; align-items:center; overflow:hidden; }
   .bg-aura { position:fixed; inset:0; z-index:0; pointer-events:none; background: radial-gradient(ellipse 60% 50% at 20% 20%, rgba(124,109,250,0.12) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 80% 80%, rgba(244,114,182,0.10) 0%, transparent 70%); animation:aura 8s ease-in-out infinite alternate; }
@@ -217,9 +186,10 @@ document.addEventListener('touchmove', moveSvgEyes, {passive:true});
   }
 
   #ariaSvgFace { position:absolute; inset:0; width:100%; height:100%; }
-  #eyeL, #eyeR { display:none; }
+  #eyeL, #eyeR { display:none !important; }
   .face-container.sleeping #ariaSvgFace { filter:brightness(0.45) saturate(0.3); transition:filter 0.6s; }
-
+  /* Fix blink SVG: transform-origin centrato sull'ellisse */
+  #svgEyeL ellipse, #svgEyeR ellipse { transform-box:fill-box; transform-origin:center; }
 </style>
 </head>
 <body>
@@ -331,63 +301,59 @@ document.addEventListener('touchmove', moveSvgEyes, {passive:true});
       <filter id="asb"><feGaussianBlur stdDeviation="1.5"/></filter>
     </defs>
     <!-- Capelli -->
-    <path d="M67,143 C66,120 70,93 82,74 C91,59 102,50 114,46 C120,44 126,43 120,43 C134,43 140,44 146,46 C158,50 169,59 178,74 C190,93 194,120 193,143 C192,163 189,183 184,200 C179,212 173,220 166,222 C151,227 139,228 120,228 C101,228 89,227 74,222 C67,220 61,212 56,200 C51,183 48,163 67,143 Z" fill="url(#ahg)" transform="scale(1) translate(0,0)"/>
+    <path d="M55,148 C53,118 60,85 75,62 C87,44 102,33 120,30 C138,33 153,44 165,62 C180,85 187,118 185,148 C184,172 180,196 173,214 C165,230 155,238 143,241 C136,243 128,244 120,244 C112,244 104,243 97,241 C85,238 75,230 67,214 C60,196 56,172 55,148 Z" fill="url(#ahg)"/>
     <!-- Collo -->
-    <path d="M97,196 C96,206 98,215 101,222 C107,225 113,226 120,226 C127,226 133,225 139,222 C142,215 144,206 143,196 C137,200 129,202 120,202 C111,202 103,200 97,196 Z" fill="url(#ang)"/>
+    <path d="M97,238 C96,250 99,261 103,270 C109,273 114,274 120,274 C126,274 131,273 137,270 C141,261 144,250 143,238 C136,243 128,245 120,245 C112,245 104,243 97,238 Z" fill="url(#ang)"/>
     <!-- Viso -->
-    <ellipse cx="120" cy="143" rx="55" ry="75" fill="url(#asg)"/>
+    <ellipse cx="120" cy="148" rx="58" ry="78" fill="url(#asg)"/>
     <!-- Guance -->
-    <ellipse cx="75" cy="155" rx="16" ry="10" fill="url(#abL)" filter="url(#asb)"/>
-    <ellipse cx="165" cy="155" rx="16" ry="10" fill="url(#abR)" filter="url(#asb)"/>
+    <ellipse cx="73" cy="162" rx="18" ry="11" fill="url(#abL)" filter="url(#asb)"/>
+    <ellipse cx="167" cy="162" rx="18" ry="11" fill="url(#abR)" filter="url(#asb)"/>
     <!-- Sopracciglia -->
-    <path d="M88,118 C92,114 100,112 109,114" fill="none" stroke="#1a0a0a" stroke-width="2.5" stroke-linecap="round"/>
-    <path d="M131,114 C140,112 148,114 152,118" fill="none" stroke="#1a0a0a" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M85,118 C90,113 100,111 111,113" fill="none" stroke="#1a0a0a" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M129,113 C140,111 150,113 155,118" fill="none" stroke="#1a0a0a" stroke-width="2.8" stroke-linecap="round"/>
     <!-- Occhio sinistro -->
     <g id="svgEyeL">
-      <ellipse cx="99" cy="130" rx="16" ry="14" fill="white"/>
-      <circle cx="99" cy="131" r="10" fill="url(#aiL)"/>
-      <circle cx="99" cy="131" r="5" fill="#1a0a3a"/>
-      <circle cx="95" cy="127" r="3" fill="white" opacity="0.9"/>
-      <circle cx="103" cy="134" r="1.5" fill="white" opacity="0.5"/>
-      <path d="M83,124 C88,116 110,116 115,124" fill="none" stroke="#1a0808" stroke-width="3" stroke-linecap="round"/>
-      <path d="M83,124 C80,119 78,115 77,111" fill="none" stroke="#1a0808" stroke-width="2" stroke-linecap="round"/>
-      <path d="M86,122 C83,117 82,112 82,108" fill="none" stroke="#1a0808" stroke-width="1.5" stroke-linecap="round"/>
+      <ellipse cx="99" cy="134" rx="17" ry="15" fill="white"/>
+      <circle id="irisL_svg" cx="99" cy="135" r="11" fill="url(#aiL)"/>
+      <circle id="pupilL_svg" cx="99" cy="135" r="5.5" fill="#1a0a3a"/>
+      <circle id="refL1_svg" cx="94" cy="130" r="3.5" fill="white" opacity="0.9"/>
+      <circle id="refL2_svg" cx="104" cy="139" r="2" fill="white" opacity="0.45"/>
+      <path d="M82,127 C88,117 110,117 116,127" fill="none" stroke="#1a0808" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M82,127 C79,121 77,116 76,111" fill="none" stroke="#1a0808" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M85,124 C83,118 82,113 82,108" fill="none" stroke="#1a0808" stroke-width="1.8" stroke-linecap="round"/>
     </g>
     <!-- Occhio destro -->
     <g id="svgEyeR">
-      <ellipse cx="141" cy="130" rx="16" ry="14" fill="white"/>
-      <circle cx="141" cy="131" r="10" fill="url(#aiR)"/>
-      <circle cx="141" cy="131" r="5" fill="#1a0a3a"/>
-      <circle cx="137" cy="127" r="3" fill="white" opacity="0.9"/>
-      <circle cx="145" cy="134" r="1.5" fill="white" opacity="0.5"/>
-      <path d="M125,124 C130,116 152,116 157,124" fill="none" stroke="#1a0808" stroke-width="3" stroke-linecap="round"/>
-      <path d="M157,124 C160,119 162,115 163,111" fill="none" stroke="#1a0808" stroke-width="2" stroke-linecap="round"/>
-      <path d="M154,122 C157,117 158,112 158,108" fill="none" stroke="#1a0808" stroke-width="1.5" stroke-linecap="round"/>
+      <ellipse cx="141" cy="134" rx="17" ry="15" fill="white"/>
+      <circle id="irisR_svg" cx="141" cy="135" r="11" fill="url(#aiR)"/>
+      <circle id="pupilR_svg" cx="141" cy="135" r="5.5" fill="#1a0a3a"/>
+      <circle id="refR1_svg" cx="136" cy="130" r="3.5" fill="white" opacity="0.9"/>
+      <circle id="refR2_svg" cx="146" cy="139" r="2" fill="white" opacity="0.45"/>
+      <path d="M124,127 C130,117 152,117 158,127" fill="none" stroke="#1a0808" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M158,127 C161,121 163,116 164,111" fill="none" stroke="#1a0808" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M155,124 C157,118 158,113 158,108" fill="none" stroke="#1a0808" stroke-width="1.8" stroke-linecap="round"/>
     </g>
     <!-- Naso -->
-    <path d="M117,167 C117,170 120,172 123,170" fill="none" stroke="#c8845a" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M116,170 C116,174 120,176 124,173" fill="none" stroke="#c8845a" stroke-width="1.8" stroke-linecap="round"/>
     <!-- Bocca -->
     <g id="svgMouth">
-      <path id="mouthPath" d="M102,183 Q120,190 138,183" fill="none" stroke="#d4607a" stroke-width="2.5" stroke-linecap="round"/>
-      <path id="lipTop" d="M102,183 Q111,179 120,180 Q129,179 138,183 Q129,181 120,181 Q111,181 102,183 Z" fill="#d4607a" opacity="0.9"/>
-      <path id="lipBot" d="M102,183 Q111,190 120,191 Q129,190 138,183 Q129,187 120,187 Q111,187 102,183 Z" fill="#e87090" opacity="0.85"/>
-      <ellipse id="mouthInner" cx="120" cy="186" rx="14" ry="5" fill="#3a0e18" opacity="0"/>
-      <rect id="teeth" x="109" y="183" width="22" height="6" rx="3" fill="#fffef5" opacity="0"/>
+      <ellipse id="mouthInner" cx="120" cy="197" rx="16" ry="8" fill="#3a0e18" opacity="0"/>
+      <rect id="teeth" x="107" y="191" width="26" height="8" rx="4" fill="#fffef5" opacity="0"/>
+      <path id="lipTop" d="M103,190 Q111,185 120,186 Q129,185 137,190 Q129,188 120,188 Q111,188 103,190 Z" fill="#d4607a"/>
+      <path id="lipBot" d="M103,190 Q111,198 120,199 Q129,198 137,190 Q129,195 120,196 Q111,195 103,190 Z" fill="#e87090"/>
+      <path id="mouthPath" d="M103,190 Q120,198 137,190" fill="none" stroke="#b8435e" stroke-width="1.5" stroke-linecap="round"/>
     </g>
-    <!-- Frangetta solida -->
-    <path d="M68,121 L68,97 C70,89 74,81 80,75 C86,68 93,63 101,59 C107,56 113,55 120,54 C127,55 133,56 139,59 C147,63 154,68 160,75 C166,81 170,89 172,97 L172,121 C165,116 156,113 146,112 C140,111 133,110 120,110 C107,110 100,111 94,112 C84,113 75,116 68,121 Z" fill="url(#afg)"/>
+    <!-- Frangetta solida unico path -->
+    <path d="M62,122 L62,96 C65,86 70,76 78,68 C86,59 96,53 107,49 C113,47 116,46 120,46 C124,46 127,47 133,49 C144,53 154,59 162,68 C170,76 175,86 178,96 L178,122 C170,117 160,113 148,111 C140,109 131,109 120,109 C109,109 100,109 92,111 C80,113 70,117 62,122 Z" fill="url(#afg)"/>
     <!-- Orecchino sx -->
-    <circle cx="65" cy="158" r="3" fill="#fbbf24"/>
-    <circle cx="65" cy="158" r="1.8" fill="#f59e0b"/>
-    <circle cx="64" cy="157" r="0.8" fill="white" opacity="0.7"/>
+    <circle cx="57" cy="162" r="3.5" fill="#fbbf24"/><circle cx="57" cy="162" r="2" fill="#f59e0b"/><circle cx="56" cy="161" r="1" fill="white" opacity="0.7"/>
     <!-- Orecchino dx -->
-    <circle cx="175" cy="158" r="3" fill="#fbbf24"/>
-    <circle cx="175" cy="158" r="1.8" fill="#f59e0b"/>
-    <circle cx="174" cy="157" r="0.8" fill="white" opacity="0.7"/>
+    <circle cx="183" cy="162" r="3.5" fill="#fbbf24"/><circle cx="183" cy="162" r="2" fill="#f59e0b"/><circle cx="182" cy="161" r="1" fill="white" opacity="0.7"/>
   </svg>
-  <!-- Overlay invisibili per eye tracking JS -->
-  <div class="eye left" id="eyeL" style="position:absolute;top:43%;left:24%;width:0;height:0;overflow:visible;pointer-events:none;"><div class="iris" id="irisL"><div class="pupil"></div></div><div class="reflection"></div></div>
-  <div class="eye right" id="eyeR" style="position:absolute;top:43%;right:22%;width:0;height:0;overflow:visible;pointer-events:none;"><div class="iris" id="irisR"><div class="pupil"></div></div><div class="reflection"></div></div>
+  <!-- Overlay vuoti per compatibilità JS esistente -->
+  <div class="eye left" id="eyeL" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;"><div class="iris" id="irisL"><div class="pupil"></div></div><div class="reflection"></div></div>
+  <div class="eye right" id="eyeR" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;"><div class="iris" id="irisR"><div class="pupil"></div></div><div class="reflection"></div></div>
 </div>
 <div class="status-area">
   <div class="state-label" id="stateLabel"><span class="dot"></span><span id="stateLabelText">in attesa</span></div>
@@ -666,53 +632,56 @@ function setEmotion(emo){
   animateMouth(emo);
 }
 function animateMouth(emo){
-  var path=document.getElementById('mouthPath');
-  var lipTop=document.getElementById('lipTop');
-  var lipBot=document.getElementById('lipBot');
-  var inner=document.getElementById('mouthInner');
-  var teeth=document.getElementById('teeth');
-  if(!path)return;
-  var mouths={
-    'felice':   {p:'M102,183 Q120,192 138,183', lt:'M102,183 Q111,179 120,180 Q129,179 138,183 Q129,181 120,181 Q111,181 102,183 Z', lb:'M102,183 Q111,190 120,191 Q129,190 138,183 Q129,187 120,187 Q111,187 102,183 Z', t:0, i:0},
-    'pensierosa':{p:'M104,185 Q116,182 132,186', lt:'M104,185 Q112,182 120,183 Q128,182 132,186 Q126,184 120,184 Q114,184 104,185 Z', lb:'M104,185 Q112,189 120,189 Q128,189 132,186 Q126,188 120,188 Q114,188 104,185 Z', t:0, i:0},
-    'sorpresa':  {p:'M108,182 Q120,182 132,182', lt:'M108,182 Q114,179 120,179 Q126,179 132,182 Q126,181 120,181 Q114,181 108,182 Z', lb:'M108,182 Q114,192 120,193 Q126,192 132,182 Q126,188 120,189 Q114,188 108,182 Z', t:0.6, i:0.5},
-    'empatica':  {p:'M103,184 Q120,190 137,184', lt:'M103,184 Q111,180 120,181 Q129,180 137,184 Q129,182 120,182 Q111,182 103,184 Z', lb:'M103,184 Q111,190 120,191 Q129,190 137,184 Q129,187 120,188 Q111,187 103,184 Z', t:0, i:0},
-    'ascoltando':{p:'M104,184 Q120,187 136,184', lt:'M104,184 Q112,181 120,182 Q128,181 136,184 Q128,182 120,183 Q112,182 104,184 Z', lb:'M104,184 Q112,188 120,189 Q128,188 136,184 Q128,186 120,187 Q112,186 104,184 Z', t:0, i:0},
-    'parlando':  {p:'M104,182 Q120,188 136,182', lt:'M104,182 Q112,178 120,179 Q128,178 136,182 Q128,180 120,180 Q112,180 104,182 Z', lb:'M104,182 Q112,190 120,191 Q128,190 136,182 Q128,187 120,188 Q112,187 104,182 Z', t:0.4, i:0.35},
-    'neutra':    {p:'M104,184 Q120,188 136,184', lt:'M104,184 Q112,181 120,182 Q128,181 136,184 Q128,182 120,183 Q112,182 104,184 Z', lb:'M104,184 Q112,188 120,189 Q128,188 136,184 Q128,186 120,187 Q112,186 104,184 Z', t:0, i:0},
-    'dormendo':  {p:'M108,185 Q120,187 132,185', lt:'M108,185 Q114,183 120,183 Q126,183 132,185 Q126,184 120,184 Q114,184 108,185 Z', lb:'M108,185 Q114,188 120,188 Q126,188 132,185 Q126,187 120,187 Q114,187 108,185 Z', t:0, i:0}
+  var mp=document.getElementById('mouthPath');
+  var lt=document.getElementById('lipTop');
+  var lb=document.getElementById('lipBot');
+  var mi=document.getElementById('mouthInner');
+  var te=document.getElementById('teeth');
+  if(!mp)return;
+  var M={
+    'felice':    {p:'M103,190 Q120,200 137,190',lt:'M103,190 Q111,185 120,186 Q129,185 137,190 Q129,188 120,188 Q111,188 103,190 Z',lb:'M103,190 Q111,200 120,201 Q129,200 137,190 Q129,196 120,197 Q111,196 103,190 Z',i:0,t:0},
+    'pensierosa':{p:'M106,192 Q118,188 134,193',lt:'M106,192 Q113,189 120,189 Q127,189 134,193 Q127,191 120,191 Q113,191 106,192 Z',lb:'M106,192 Q113,196 120,196 Q127,196 134,193 Q127,195 120,195 Q113,195 106,192 Z',i:0,t:0},
+    'sorpresa':  {p:'M109,189 Q120,189 131,189',lt:'M109,189 Q114,185 120,185 Q126,185 131,189 Q126,187 120,187 Q114,187 109,189 Z',lb:'M109,189 Q114,200 120,201 Q126,200 131,189 Q126,196 120,197 Q114,196 109,189 Z',i:0.6,t:0.7},
+    'empatica':  {p:'M104,191 Q120,198 136,191',lt:'M104,191 Q111,186 120,187 Q129,186 136,191 Q129,189 120,189 Q111,189 104,191 Z',lb:'M104,191 Q111,199 120,200 Q129,199 136,191 Q129,196 120,197 Q111,196 104,191 Z',i:0,t:0},
+    'ascoltando':{p:'M105,191 Q120,195 135,191',lt:'M105,191 Q112,187 120,188 Q128,187 135,191 Q128,189 120,190 Q112,189 105,191 Z',lb:'M105,191 Q112,197 120,197 Q128,197 135,191 Q128,195 120,195 Q112,195 105,191 Z',i:0,t:0},
+    'parlando':  {p:'M103,190 Q120,198 137,190',lt:'M103,190 Q111,185 120,186 Q129,185 137,190 Q129,188 120,188 Q111,188 103,190 Z',lb:'M103,190 Q111,199 120,200 Q129,199 137,190 Q129,196 120,197 Q111,196 103,190 Z',i:0.3,t:0.3},
+    'neutra':    {p:'M105,191 Q120,195 135,191',lt:'M105,191 Q112,187 120,188 Q128,187 135,191 Q128,189 120,190 Q112,189 105,191 Z',lb:'M105,191 Q112,197 120,197 Q128,197 135,191 Q128,195 120,195 Q112,195 105,191 Z',i:0,t:0},
+    'dormendo':  {p:'M110,192 Q120,194 130,192',lt:'M110,192 Q115,190 120,190 Q125,190 130,192 Q125,191 120,191 Q115,191 110,192 Z',lb:'M110,192 Q115,195 120,195 Q125,195 130,192 Q125,194 120,194 Q115,194 110,192 Z',i:0,t:0}
   };
-  var m=mouths[emo]||mouths['neutra'];
-  path.setAttribute('d',m.p);
-  if(lipTop)lipTop.setAttribute('d',m.lt);
-  if(lipBot)lipBot.setAttribute('d',m.lb);
-  if(inner)inner.setAttribute('opacity',m.i);
-  if(teeth)teeth.setAttribute('opacity',m.t);
+  var m=M[emo]||M['neutra'];
+  mp.setAttribute('d',m.p);
+  if(lt)lt.setAttribute('d',m.lt);
+  if(lb)lb.setAttribute('d',m.lb);
+  if(mi)mi.setAttribute('opacity',m.i);
+  if(te)te.setAttribute('opacity',m.t);
   if(emo==='parlando')startMouthTalk();else stopMouthTalk();
 }
 var mouthTalkInterval=null;
 function startMouthTalk(){
   if(mouthTalkInterval)return;
   var phase=0;
-  var frames=[
-    {p:'M104,181 Q120,191 136,181',lb:'M104,181 Q112,192 120,193 Q128,192 136,181 Q128,188 120,189 Q112,188 104,181 Z',t:'0.7',i:'0.6'},
-    {p:'M106,183 Q120,188 134,183',lb:'M106,183 Q112,189 120,190 Q128,189 134,183 Q128,186 120,187 Q112,186 106,183 Z',t:'0.3',i:'0.25'},
-    {p:'M103,180 Q120,193 137,180',lb:'M103,180 Q111,194 120,195 Q129,194 137,180 Q129,189 120,190 Q111,189 103,180 Z',t:'0.85',i:'0.7'},
-    {p:'M105,183 Q120,187 135,183',lb:'M105,183 Q112,189 120,189 Q128,189 135,183 Q128,186 120,186 Q112,186 105,183 Z',t:'0.2',i:'0.15'},
+  // Frame con apertura molto più pronunciata
+  var F=[
+    {p:'M103,188 Q120,205 137,188',lt:'M103,188 Q111,182 120,183 Q129,182 137,188 Q129,185 120,185 Q111,185 103,188 Z',lb:'M103,188 Q111,207 120,209 Q129,207 137,188 Q129,202 120,204 Q111,202 103,188 Z',i:'0.85',t:'0.9'},
+    {p:'M106,191 Q120,196 134,191',lt:'M106,191 Q112,188 120,188 Q128,188 134,191 Q128,190 120,190 Q112,190 106,191 Z',lb:'M106,191 Q112,198 120,199 Q128,198 134,191 Q128,196 120,197 Q112,196 106,191 Z',i:'0.1',t:'0.1'},
+    {p:'M102,187 Q120,207 138,187',lt:'M102,187 Q110,180 120,181 Q130,180 138,187 Q130,184 120,184 Q110,184 102,187 Z',lb:'M102,187 Q110,210 120,212 Q130,210 138,187 Q130,205 120,207 Q110,205 102,187 Z',i:'0.95',t:'0.95'},
+    {p:'M107,191 Q120,194 133,191',lt:'M107,191 Q113,189 120,189 Q127,189 133,191 Q127,190 120,190 Q113,190 107,191 Z',lb:'M107,191 Q113,196 120,197 Q127,196 133,191 Q127,195 120,195 Q113,195 107,191 Z',i:'0.05',t:'0.05'},
   ];
   mouthTalkInterval=setInterval(function(){
-    phase=(phase+1)%frames.length;
-    var f=frames[phase];
-    var path=document.getElementById('mouthPath');
+    phase=(phase+1)%F.length;
+    var f=F[phase];
+    var mp=document.getElementById('mouthPath');
+    var lt=document.getElementById('lipTop');
     var lb=document.getElementById('lipBot');
-    var teeth=document.getElementById('teeth');
-    var inner=document.getElementById('mouthInner');
-    if(!path)return;
-    path.setAttribute('d',f.p);
+    var te=document.getElementById('teeth');
+    var mi=document.getElementById('mouthInner');
+    if(!mp)return;
+    mp.setAttribute('d',f.p);
+    if(lt)lt.setAttribute('d',f.lt);
     if(lb)lb.setAttribute('d',f.lb);
-    if(teeth)teeth.setAttribute('opacity',f.t);
-    if(inner)inner.setAttribute('opacity',f.i);
-  },160);
+    if(te)te.setAttribute('opacity',f.t);
+    if(mi)mi.setAttribute('opacity',f.i);
+  },150);
 }
 function stopMouthTalk(){if(mouthTalkInterval){clearInterval(mouthTalkInterval);mouthTalkInterval=null;}}
 
@@ -1261,20 +1230,54 @@ function onAudioUnlocked(){
     if(b&&b.classList.contains('visible'))startWakeWord();
   }
 }
+</script>
 
-// Blink SVG eyes
-setInterval(function(){
-  ['svgEyeL','svgEyeR'].forEach(function(id){
-    var g = document.getElementById(id);
-    if(!g) return;
-    var el = g.querySelector('ellipse');
-    if(!el) return;
-    el.style.transition = 'transform 0.06s';
-    el.style.transform = 'scaleY(0.05)';
-    setTimeout(function(){ el.style.transform = 'scaleY(1)'; }, 80);
+<script>
+// Eye tracking SVG
+function moveSvgEyes(e){
+  var svg=document.getElementById('ariaSvgFace');
+  if(!svg)return;
+  var rect=svg.getBoundingClientRect();
+  var px=e.touches?e.touches[0].clientX:e.clientX;
+  var py=e.touches?e.touches[0].clientY:e.clientY;
+  var dx=(px-(rect.left+rect.width/2))/(rect.width/2);
+  var dy=(py-(rect.top+rect.height/2))/(rect.height/2);
+  var mx=2.8;
+  dx=Math.max(-1,Math.min(1,dx))*mx;
+  dy=Math.max(-1,Math.min(1,dy))*mx;
+  var eyes={svgEyeL:{cx:99,cy:135},svgEyeR:{cx:141,cy:135}};
+  Object.keys(eyes).forEach(function(id){
+    var c=eyes[id];
+    var iris=document.getElementById(id==='svgEyeL'?'irisL_svg':'irisR_svg');
+    var pupil=document.getElementById(id==='svgEyeL'?'pupilL_svg':'pupilR_svg');
+    var r1=document.getElementById(id==='svgEyeL'?'refL1_svg':'refR1_svg');
+    var r2=document.getElementById(id==='svgEyeL'?'refL2_svg':'refR2_svg');
+    if(iris){iris.setAttribute('cx',c.cx+dx);iris.setAttribute('cy',c.cy+dy);}
+    if(pupil){pupil.setAttribute('cx',c.cx+dx);pupil.setAttribute('cy',c.cy+dy);}
+    if(r1){r1.setAttribute('cx',c.cx+dx-5);r1.setAttribute('cy',c.cy+dy-5);}
+    if(r2){r2.setAttribute('cx',c.cx+dx+5);r2.setAttribute('cy',c.cy+dy+4);}
   });
-}, 5000 + Math.random()*2000);
+}
+document.addEventListener('mousemove',moveSvgEyes);
+document.addEventListener('touchmove',moveSvgEyes,{passive:true});
 
+// Blink SVG — scaleY centrato, no salto dall'alto
+function doBlinkSvg(){
+  var eyelids=['svgEyeL','svgEyeR'];
+  eyelids.forEach(function(id){
+    var el=document.querySelector('#'+id+' ellipse');
+    if(!el)return;
+    el.style.transition='transform 0.07s ease-in';
+    el.style.transform='scaleY(0.06)';
+    setTimeout(function(){
+      el.style.transition='transform 0.10s ease-out';
+      el.style.transform='scaleY(1)';
+    },90);
+  });
+  // Prossimo blink random tra 3-7s
+  setTimeout(doBlinkSvg, 3000+Math.random()*4000);
+}
+setTimeout(doBlinkSvg, 2000+Math.random()*3000);
 </script>
 </body>
 </html>
