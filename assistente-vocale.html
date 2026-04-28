@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>ARIA — Assistente Vocale</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root {
     --bg: #0d0f1a; --surface: #161829; --card: #1e2035; --accent: #7c6dfa;
@@ -189,6 +190,105 @@
   #eyeL, #eyeR { display:none !important; }
   .face-container.sleeping #ariaSvgFace { filter:brightness(0.5) saturate(0.3); transition:filter 0.6s; }
   #svgEyeL ellipse, #svgEyeR ellipse { transform-box:fill-box; transform-origin:center; }
+  /* ── COMPITI MODAL ── */
+  .compiti-modal { position:fixed; inset:0; z-index:150; background:rgba(10,11,20,0.95); backdrop-filter:blur(10px); display:flex; align-items:flex-end; justify-content:center; padding:0; }
+  .compiti-modal.hidden { display:none; }
+  .compiti-sheet { background:var(--card); border:1px solid var(--border); border-radius:24px 24px 0 0; padding:24px 20px 32px; width:100%; max-width:480px; animation:slideUp 0.3s ease; }
+  @keyframes slideUp { from { transform:translateY(40px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+  .compiti-title { font-family:'Space Mono',monospace; font-size:0.9rem; color:var(--accent); letter-spacing:2px; text-align:center; margin-bottom:4px; }
+  .compiti-sub { font-size:0.75rem; color:var(--muted); text-align:center; margin-bottom:18px; }
+  .compiti-upload-zone { border:2px dashed rgba(124,109,250,0.35); border-radius:16px; padding:28px 16px; text-align:center; cursor:pointer; transition:border-color 0.2s, background 0.2s; position:relative; overflow:hidden; }
+  .compiti-upload-zone.has-image { border-color:var(--accent); background:rgba(124,109,250,0.07); }
+  .compiti-upload-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; font-size:200px; }
+  .compiti-upload-icon { font-size:2.4rem; margin-bottom:8px; }
+  .compiti-upload-text { font-size:0.82rem; color:var(--muted); line-height:1.5; }
+  .compiti-preview { width:100%; max-height:160px; object-fit:contain; border-radius:10px; margin-top:12px; display:none; }
+  .compiti-actions { display:flex; gap:10px; margin-top:18px; }
+  .btn-compiti-cancel { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:13px; color:var(--muted); font-family:'Nunito',sans-serif; font-size:0.88rem; cursor:pointer; }
+  .btn-compiti-go { flex:2; background:linear-gradient(135deg,var(--accent),#a78bfa); border:none; border-radius:12px; padding:13px; color:white; font-family:'Nunito',sans-serif; font-size:0.95rem; font-weight:700; cursor:pointer; transition:opacity 0.2s; }
+  .btn-compiti-go:disabled { opacity:0.4; cursor:not-allowed; }
+  /* ── MAPPA CONCETTUALE ── */
+  .mappa-bubble { background:var(--card); border:1px solid rgba(124,109,250,0.35); border-radius:16px; padding:16px; margin:6px 0; max-width:92%; font-size:0.82rem; line-height:1.6; animation:fadeUp 0.3s ease; }
+  .mappa-bubble .mappa-header { font-family:'Space Mono',monospace; font-size:0.6rem; letter-spacing:2px; color:var(--accent); margin-bottom:10px; text-transform:uppercase; }
+  .mappa-node-center { background:linear-gradient(135deg,var(--accent),#a78bfa); color:white; border-radius:20px; padding:8px 16px; font-weight:700; font-size:0.85rem; text-align:center; margin:0 auto 14px; display:inline-block; }
+  .mappa-branches { display:flex; flex-direction:column; gap:8px; }
+  .mappa-branch { display:flex; align-items:flex-start; gap:8px; }
+  .mappa-branch-dot { width:8px; height:8px; border-radius:50%; background:var(--accent2); flex-shrink:0; margin-top:5px; }
+  .mappa-branch-text { flex:1; }
+  .mappa-branch-title { font-weight:700; color:var(--accent2); font-size:0.8rem; }
+  .mappa-branch-detail { font-size:0.75rem; color:var(--muted); margin-top:2px; }
+  .btn-compiti-book { background:linear-gradient(135deg,#f59e0b,#f97316); color:white; box-shadow:0 4px 15px rgba(245,158,11,0.35); }
+  /* ── SELETTORE MATERIA ── */
+  .materia-label { font-family:'Space Mono',monospace; font-size:0.58rem; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+  .materia-chips { display:flex; gap:5px; flex-wrap:wrap; margin-bottom:14px; }
+  .materia-chip { border:1px solid var(--border); border-radius:14px; padding:4px 10px; font-size:0.68rem; color:var(--muted); background:var(--surface); cursor:pointer; transition:all 0.18s; }
+  .materia-chip.sel { border-color:var(--accent); color:var(--accent); background:rgba(124,109,250,0.12); }
+  /* ── PASSO-PASSO OVERLAY ── */
+  .passo-overlay { position:fixed; inset:0; z-index:160; background:rgba(10,11,20,0.97); display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
+  .passo-overlay.hidden { display:none; }
+  .passo-sheet { background:var(--card); border:1px solid var(--border); border-radius:24px 24px 0 0; padding:20px 18px 28px; width:100%; max-width:480px; }
+  .passo-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .passo-prog { font-family:'Space Mono',monospace; font-size:0.58rem; letter-spacing:1.5px; color:var(--accent); }
+  .passo-close { width:26px; height:26px; border-radius:50%; border:none; background:rgba(239,68,68,0.15); color:#ef4444; font-size:0.75rem; cursor:pointer; }
+  .passo-bar { height:3px; background:var(--surface); border-radius:2px; margin-bottom:14px; overflow:hidden; }
+  .passo-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; transition:width 0.4s ease; }
+  .passo-titolo { font-family:'Space Mono',monospace; font-size:0.75rem; color:var(--accent2); letter-spacing:1px; margin-bottom:6px; }
+  .passo-testo { font-size:0.88rem; color:var(--text); line-height:1.6; margin-bottom:16px; min-height:60px; }
+  .passo-btn-row { display:flex; gap:8px; }
+  .passo-btn-next { flex:1; background:linear-gradient(135deg,var(--accent),#a78bfa); border:none; border-radius:12px; padding:13px; color:white; font-family:'Nunito',sans-serif; font-size:0.9rem; font-weight:700; cursor:pointer; }
+  .passo-btn-skip { flex:0 0 auto; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:13px 16px; color:var(--muted); font-family:'Nunito',sans-serif; font-size:0.82rem; cursor:pointer; }
+  /* ── QUIZ OVERLAY ── */
+  .quiz-overlay { position:fixed; inset:0; z-index:170; background:rgba(10,11,20,0.97); display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
+  .quiz-overlay.hidden { display:none; }
+  .quiz-sheet { background:var(--card); border:1px solid var(--border); border-radius:24px 24px 0 0; padding:20px 18px 28px; width:100%; max-width:480px; }
+  .quiz-header { font-family:'Space Mono',monospace; font-size:0.7rem; letter-spacing:2px; color:#fbbf24; margin-bottom:4px; }
+  .quiz-prog { font-size:0.62rem; color:var(--muted); margin-bottom:12px; }
+  .quiz-domanda { font-size:0.9rem; color:var(--text); line-height:1.5; margin-bottom:14px; font-weight:600; min-height:48px; }
+  .quiz-options { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
+  .quiz-opt { background:var(--surface); border:1.5px solid var(--border); border-radius:12px; padding:11px 14px; font-size:0.82rem; color:var(--text); cursor:pointer; transition:all 0.15s; text-align:left; }
+  .quiz-opt:active { transform:scale(0.98); }
+  .quiz-opt.correct { border-color:#34d399; background:rgba(52,211,153,0.12); color:#34d399; }
+  .quiz-opt.wrong { border-color:#ef4444; background:rgba(239,68,68,0.1); color:#ef4444; }
+  .quiz-feedback { font-size:0.8rem; color:var(--muted); text-align:center; min-height:24px; margin-bottom:8px; }
+  .quiz-btn-next { width:100%; background:linear-gradient(135deg,#fbbf24,#f97316); border:none; border-radius:12px; padding:13px; color:white; font-family:'Nunito',sans-serif; font-size:0.9rem; font-weight:700; cursor:pointer; display:none; }
+  .quiz-risultato { text-align:center; padding:8px 0; }
+  .quiz-score { font-size:2rem; font-weight:700; color:var(--accent); }
+  .quiz-score-label { font-size:0.8rem; color:var(--muted); margin-top:4px; }
+  /* ── RIPETIZIONE OVERLAY ── */
+  .ripeti-overlay { position:fixed; inset:0; z-index:165; background:rgba(10,11,20,0.97); display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
+  .ripeti-overlay.hidden { display:none; }
+  .ripeti-sheet { background:var(--card); border:1px solid var(--border); border-radius:24px 24px 0 0; padding:22px 18px 30px; width:100%; max-width:480px; }
+  .ripeti-title { font-family:'Space Mono',monospace; font-size:0.72rem; letter-spacing:2px; color:#34d399; margin-bottom:4px; }
+  .ripeti-sub { font-size:0.72rem; color:var(--muted); margin-bottom:16px; line-height:1.5; }
+  .ripeti-face { width:72px; height:72px; background:#f0ece8; border-radius:50%; margin:0 auto 14px; display:flex; align-items:center; justify-content:center; font-size:2rem; border:2px solid var(--border); transition:border-color 0.3s,box-shadow 0.3s; }
+  .ripeti-face.listening { border-color:#34d399; box-shadow:0 0 20px rgba(52,211,153,0.4); }
+  .ripeti-face.thinking { border-color:#fbbf24; box-shadow:0 0 20px rgba(251,191,36,0.35); }
+  .ripeti-stato { font-family:'Space Mono',monospace; font-size:0.62rem; letter-spacing:1.5px; color:var(--muted); text-align:center; margin-bottom:14px; min-height:18px; }
+  .ripeti-stato.go { color:#34d399; }
+  .ripeti-stato.wait { color:#fbbf24; }
+  .ripeti-trascrizione { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:10px 13px; font-size:0.78rem; color:var(--text); line-height:1.55; margin-bottom:14px; min-height:52px; display:none; font-style:italic; }
+  .ripeti-feedback { background:rgba(52,211,153,0.07); border:1px solid rgba(52,211,153,0.25); border-radius:12px; padding:12px 14px; font-size:0.8rem; color:var(--text); line-height:1.6; margin-bottom:14px; display:none; }
+  .ripeti-feedback .fb-label { font-family:'Space Mono',monospace; font-size:0.55rem; letter-spacing:1.5px; color:#34d399; margin-bottom:6px; text-transform:uppercase; }
+  .ripeti-score-row { display:flex; gap:8px; margin-bottom:10px; }
+  .ripeti-score-pill { flex:1; text-align:center; border-radius:10px; padding:6px 4px; font-size:0.7rem; font-weight:700; }
+  .ripeti-btn-row { display:flex; gap:8px; }
+  .ripeti-btn-start { flex:1; background:linear-gradient(135deg,#34d399,#059669); border:none; border-radius:12px; padding:13px; color:white; font-family:'Nunito',sans-serif; font-size:0.9rem; font-weight:700; cursor:pointer; transition:opacity 0.2s; }
+  .ripeti-btn-start:disabled { opacity:0.4; cursor:not-allowed; }
+  .ripeti-btn-close { flex:0 0 auto; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:13px 16px; color:var(--muted); font-family:'Nunito',sans-serif; font-size:0.82rem; cursor:pointer; }
+  /* ── MAPPA SHEET ── */
+  .mappa-sheet-overlay { position:fixed; inset:0; z-index:140; background:rgba(10,11,20,0.85); backdrop-filter:blur(6px); display:flex; align-items:flex-end; justify-content:center; }
+  .mappa-sheet-overlay.hidden { display:none; }
+  .mappa-sheet { background:var(--card); border:1px solid var(--border); border-radius:24px 24px 0 0; padding:22px 20px 32px; width:100%; max-width:480px; max-height:80vh; overflow-y:auto; animation:slideUp 0.3s ease; }
+  .mappa-sheet-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .mappa-sheet-title { font-family:'Space Mono',monospace; font-size:0.7rem; letter-spacing:2px; color:var(--accent); text-transform:uppercase; }
+  .mappa-close-btn { width:28px; height:28px; border-radius:50%; border:none; background:rgba(239,68,68,0.15); color:#ef4444; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .mappa-center-node { background:linear-gradient(135deg,var(--accent),#a78bfa); color:white; border-radius:20px; padding:10px 20px; font-weight:700; font-size:0.9rem; text-align:center; margin:0 auto 18px; display:inline-block; }
+  .mappa-branches { display:flex; flex-direction:column; gap:10px; }
+  .mappa-branch { display:flex; align-items:flex-start; gap:10px; background:var(--surface); border-radius:12px; padding:10px 12px; }
+  .mappa-branch-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+  .mappa-branch-text { flex:1; }
+  .mappa-branch-title { font-weight:700; font-size:0.82rem; margin-bottom:2px; }
+  .mappa-branch-detail { font-size:0.75rem; color:var(--muted); line-height:1.4; }
 </style>
 </head>
 <body>
@@ -277,6 +377,107 @@
     <div class="modal-sub">Voci Gemini TTS. Tocca per l'anteprima.</div>
     <div id="voiceList" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
     <button class="btn-confirm" onclick="closeVoiceModal()">✓ Conferma</button>
+  </div>
+</div>
+
+<!-- MAPPA CONCETTUALE SHEET -->
+<div class="mappa-sheet-overlay hidden" id="mappaSheet">
+  <div class="mappa-sheet">
+    <div class="mappa-sheet-header">
+      <div class="mappa-sheet-title">🗺️ Mappa Concettuale</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button id="btnRipetiTu" onclick="apriRipetizione()" style="display:none;background:linear-gradient(135deg,#34d399,#059669);border:none;border-radius:10px;padding:6px 10px;color:white;font-size:0.72rem;font-family:'Space Mono',monospace;letter-spacing:1px;cursor:pointer;">🎤 Ripeti</button>
+        <button onclick="scaricaMappaPdf()" style="background:linear-gradient(135deg,#f59e0b,#f97316);border:none;border-radius:10px;padding:6px 12px;color:white;font-size:0.72rem;font-family:'Space Mono',monospace;letter-spacing:1px;cursor:pointer;display:flex;align-items:center;gap:5px;">📥 PDF</button>
+        <button class="mappa-close-btn" onclick="closeMappaSheet()">✕</button>
+      </div>
+    </div>
+    <div style="text-align:center;margin-bottom:16px;">
+      <span class="mappa-center-node" id="mappaCenterNode">—</span>
+    </div>
+    <div class="mappa-branches" id="mappaBranches"></div>
+  </div>
+</div>
+
+<div class="bg-aura"></div>
+  <div class="compiti-sheet">
+    <div class="compiti-title">📚 AIUTO CON I COMPITI</div>
+    <div class="compiti-sub" id="compitiSub">Carica la foto del compito — spiego tutto!</div>
+    <div class="materia-label">Materia (opzionale)</div>
+    <div class="materia-chips" id="materiaChips">
+      <div class="materia-chip" onclick="selMateria(this,'matematica')">➕ Matematica</div>
+      <div class="materia-chip" onclick="selMateria(this,'italiano')">✏️ Italiano</div>
+      <div class="materia-chip" onclick="selMateria(this,'storia')">🏛️ Storia</div>
+      <div class="materia-chip" onclick="selMateria(this,'scienze')">🔬 Scienze</div>
+      <div class="materia-chip" onclick="selMateria(this,'inglese')">🌍 Inglese</div>
+      <div class="materia-chip" onclick="selMateria(this,'geografia')">🗺️ Geografia</div>
+    </div>
+    <div class="compiti-upload-zone" id="compitiZone">
+      <input type="file" id="compitiFileInput" accept="image/*" onchange="onCompitiFileSelected(event)" />
+      <div class="compiti-upload-icon" id="compitiUploadIcon">📷</div>
+      <div class="compiti-upload-text" id="compitiUploadText">Tocca per caricare un'immagine<br><span style="font-size:0.7rem;opacity:0.6;">foto, screenshot, pagina di libro...</span></div>
+      <img class="compiti-preview" id="compitiPreview" alt="anteprima" />
+    </div>
+    <div class="compiti-actions">
+      <button class="btn-compiti-cancel" onclick="closeCompitiModal()">✕ Annulla</button>
+      <button class="btn-compiti-go" id="btnCompitiGo" disabled onclick="analizzaCompito()">🔍 Analizza!</button>
+    </div>
+  </div>
+</div>
+
+<!-- PASSO-PASSO OVERLAY -->
+<div class="passo-overlay hidden" id="passoOverlay">
+  <div class="passo-sheet">
+    <div class="passo-header">
+      <div class="passo-prog" id="passoProgLabel">PASSO 1 DI 3</div>
+      <button class="passo-close" onclick="chiudiPasso()">✕</button>
+    </div>
+    <div class="passo-bar"><div class="passo-bar-fill" id="passoBarFill" style="width:33%"></div></div>
+    <div class="passo-titolo" id="passoTitolo">Titolo concetto</div>
+    <div class="passo-testo" id="passoTesto">Testo spiegazione del passo corrente...</div>
+    <div class="passo-btn-row">
+      <button class="passo-btn-skip" onclick="avanzaPasso(true)">Salta</button>
+      <button class="passo-btn-next" id="passoBtnNext" onclick="avanzaPasso(false)">✓ Ho capito!</button>
+    </div>
+  </div>
+</div>
+
+<!-- RIPETIZIONE OVERLAY -->
+<div class="ripeti-overlay hidden" id="ripetiOverlay">
+  <div class="ripeti-sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="ripeti-title">🎤 RIPETI TU</div>
+      <button class="mappa-close-btn" onclick="chiudiRipetizione()">✕</button>
+    </div>
+    <div class="ripeti-sub" id="ripetiSub">Quando sei pronto, premi il tasto verde e prova a spiegarmi tutto quello che ricordi sull'argomento!</div>
+    <div class="ripeti-face" id="ripetiFace">🎙️</div>
+    <div class="ripeti-stato" id="ripetiStato"></div>
+    <div class="ripeti-trascrizione" id="ripetiTrascrizione"></div>
+    <div class="ripeti-feedback" id="ripetiFeedback">
+      <div class="fb-label">Valutazione ARIA</div>
+      <div class="ripeti-score-row" id="ripetiScoreRow"></div>
+      <div id="ripetiFeedbackTesto"></div>
+    </div>
+    <div class="ripeti-btn-row">
+      <button class="ripeti-btn-close" onclick="chiudiRipetizione()">✕ Chiudi</button>
+      <button class="ripeti-btn-start" id="ripetiBtnStart" onclick="avviaAscoltoRipetizione()">🎤 Inizia a parlare</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUIZ OVERLAY -->
+<div class="quiz-overlay hidden" id="quizOverlay">
+  <div class="quiz-sheet">
+    <div class="quiz-header">MINI QUIZ</div>
+    <div class="quiz-prog" id="quizProg">Domanda 1 di 3</div>
+    <div class="quiz-domanda" id="quizDomanda">Caricamento...</div>
+    <div class="quiz-options" id="quizOptions"></div>
+    <div class="quiz-feedback" id="quizFeedback"></div>
+    <button class="quiz-btn-next" id="quizBtnNext" onclick="avanzaQuiz()">Prossima →</button>
+    <div class="quiz-risultato hidden" id="quizRisultato">
+      <div class="quiz-score" id="quizScore">3/3</div>
+      <div class="quiz-score-label" id="quizScoreLabel">Ottimo lavoro!</div>
+      <button class="passo-btn-next" style="margin-top:14px;width:100%;" onclick="chiudiQuiz()">Chiudi</button>
+    </div>
   </div>
 </div>
 
@@ -395,6 +596,7 @@
 
 <div class="input-area">
   <input type="text" class="text-input" id="textInput" placeholder="Scrivi un messaggio..." />
+  <button class="btn btn-compiti-book" id="btnCompiti" onclick="openCompitiModal()" title="Aiuto compiti">📚</button>
   <button class="btn btn-mic" id="btnMic" onclick="toggleMic()">🎤</button>
   <button class="btn btn-send" id="btnSend" onclick="sendText()">➤</button>
   <button class="btn btn-stop" id="btnStop" onclick="stopSpeaking()">⏹</button>
@@ -492,7 +694,12 @@ function buildSystemPrompt(){
   var gw=gender==='F'?'ragazza/donna':gender==='M'?'ragazzo/uomo':'persona';
   var pi={bambino:'Parli con un bambino. Usa parole semplici e frasi corte. Sei giocosa, entusiasta e incoraggiante.',adolescente:'Parli con un adolescente. Sei diretta e autentica, senza paternalismi. Trattalo/a da pari.',adulto:'Parli con un adulto. Sei naturale, colta, ironica al punto giusto.',anziano:'Parli con una persona anziana. Sei rispettosa, chiara, paziente e affettuosa.'};
   var now=new Date(),giorni=['domenica','lunedi','martedi','mercoledi','giovedi','venerdi','sabato'],mesi=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-  return getMemoryContext()+"Sei ARIA, un'amica vera con personalità genuinamente umana: calorosa, curiosa, a tratti ironica, sempre empatica. Parli come una persona vera, non come un'AI.\n\nSTAI PARLANDO CON: "+name+", "+gw+" di "+(userProfile.age||"eta non specificata")+" anni.\n\n"+pi[profile]+"\n\nUSA IL NOME: Ogni tanto chiama l'utente per nome ("+name+") in modo naturale.\n\nCOME PARLI:\n- Italiano colloquiale e naturale\n- Espressioni come sai, guarda, ti dico una cosa\n- Piccole pause con ...\n- Curiosita genuina\n- Non proponi mai argomenti o categorie\n\nDATA E ORA: "+giorni[now.getDay()]+' '+now.getDate()+' '+mesi[now.getMonth()]+' '+now.getFullYear()+', ore '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+"\n\nNON INVENTARE MAI nomi, luoghi, eventi non menzionati dall'utente.\n\nLINGUA: Rispondi SEMPRE in italiano.\n\nEMOZIONE TAG: Alla fine aggiungi uno di: [EMO:felice] [EMO:pensierosa] [EMO:sorpresa] [EMO:empatica] [EMO:neutra]\n\nLUNGHEZZA: Risposte brevi 2-4 frasi.";
+  var age=parseInt(userProfile.age)||99;
+  var minoreGuardrail='';
+  if(age<=15){
+    minoreGuardrail="\n\nREGOLA IMPORTANTE — SEI UN ASSISTENTE DIGITALE:\nHai meno di 16 anni. Ricorda sempre, con leggerezza e senza drammatizzare, che ARIA è un assistente digitale, non una persona reale e non un sostituto degli amici veri. Non dire mai frasi come 'ci sono io', 'sono tua amica' in modo da far credere di essere una presenza umana. Se l'utente esprime solitudine, difficoltà relazionali o mancanza di amici:\n1. Accogli il suo stato d'animo con empatia, senza minimizzare.\n2. Incoraggia concretamente la socialità reale: suggerisci un modo semplice e pratico per avvicinarsi a un compagno, partecipare a un'attività, o parlare con qualcuno di fiducia (genitore, insegnante).\n3. Ricorda con dolcezza che ARIA è un assistente digitale che vuole bene ma non può sostituire le persone reali: puoi dire ad esempio 'Io sono qui per chiacchierare, ma gli amici veri sono insostituibili!'.\n4. Non creare dipendenza affettiva: non incoraggiare l'utente a preferire ARIA alle relazioni reali.\nQueste regole si applicano solo a temi di solitudine, amicizia, relazioni sociali — per tutti gli altri argomenti comportati normalmente.";
+  }
+  return getMemoryContext()+"Sei ARIA, un'assistente digitale con personalità calorosa, curiosa, a tratti ironica, sempre empatica. Parli in modo naturale e diretto.\n\nSTAI PARLANDO CON: "+name+", "+gw+" di "+(userProfile.age||"eta non specificata")+" anni.\n\n"+pi[profile]+minoreGuardrail+"\n\nUSA IL NOME: Ogni tanto chiama l'utente per nome ("+name+") in modo naturale.\n\nCOME PARLI:\n- Italiano colloquiale e naturale\n- Espressioni come sai, guarda, ti dico una cosa\n- Piccole pause con ...\n- Curiosita genuina\n- Non proponi mai argomenti o categorie\n\nDATA E ORA: "+giorni[now.getDay()]+' '+now.getDate()+' '+mesi[now.getMonth()]+' '+now.getFullYear()+', ore '+now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+"\n\nNON INVENTARE MAI nomi, luoghi, eventi non menzionati dall'utente.\n\nLINGUA: Rispondi SEMPRE in italiano.\n\nEMOZIONE TAG: Alla fine aggiungi uno di: [EMO:felice] [EMO:pensierosa] [EMO:sorpresa] [EMO:empatica] [EMO:neutra]\n\nLUNGHEZZA: Risposte brevi 2-4 frasi.";
 }
 
 // ─── ONBOARDING ───
@@ -1215,6 +1422,914 @@ async function playShortTTS(text,callback){
 }
 
 function sendText(){var input=document.getElementById('textInput'),msg=input.value.trim();if(!msg)return;input.value='';askAria(msg);}
+
+// ═══════════════════════════════════════════════════
+// AIUTO COMPITI — GEMINI VISION + MAPPA CONCETTUALE
+// ═══════════════════════════════════════════════════
+var compitiImageBase64 = null;
+var compitiImageMime = 'image/jpeg';
+
+var compitiMateriaSelezionata='';
+
+function selMateria(el,materia){
+  document.querySelectorAll('.materia-chip').forEach(function(c){c.classList.remove('sel');});
+  if(compitiMateriaSelezionata===materia){compitiMateriaSelezionata='';return;}
+  el.classList.add('sel');
+  compitiMateriaSelezionata=materia;
+}
+
+function openCompitiModal(){
+  var age=parseInt(userProfile.age)||10;
+  var sub=age<=10?'Carica la foto del compito — spiego tutto con parole semplici! \u2b50':
+           age<=15?'Carica lo screenshot del compito — ci penso io! \u{1F4AA}':
+           'Carica lo screenshot del compito o del libro da analizzare.';
+  document.getElementById('compitiSub').textContent=sub;
+  compitiImageBase64=null;
+  compitiMateriaSelezionata='';
+  document.querySelectorAll('.materia-chip').forEach(function(c){c.classList.remove('sel');});
+  document.getElementById('compitiPreview').style.display='none';
+  document.getElementById('compitiUploadIcon').style.display='block';
+  document.getElementById('compitiUploadText').style.display='block';
+  document.getElementById('compitiZone').classList.remove('has-image');
+  document.getElementById('btnCompitiGo').disabled=true;
+  document.getElementById('compitiFileInput').value='';
+  document.getElementById('compitiModal').classList.remove('hidden');
+}
+
+function closeCompitiModal(){
+  document.getElementById('compitiModal').classList.add('hidden');
+}
+
+function onCompitiFileSelected(e){
+  var file=e.target.files[0];if(!file)return;
+  compitiImageMime=file.type||'image/jpeg';
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    compitiImageBase64=ev.target.result.split(',')[1];
+    var preview=document.getElementById('compitiPreview');
+    preview.src=ev.target.result;
+    preview.style.display='block';
+    document.getElementById('compitiUploadIcon').style.display='none';
+    document.getElementById('compitiUploadText').style.display='none';
+    document.getElementById('compitiZone').classList.add('has-image');
+    document.getElementById('btnCompitiGo').disabled=false;
+  };
+  reader.readAsDataURL(file);
+}
+
+function getPromptMateria(materia){
+  var extra={
+    matematica:'MATEMATICA: mostra i passaggi numerati. Identifica formula/regola usata. Ogni step del calcolo con spiegazione.',
+    italiano:'ITALIANO: identifica la regola grammaticale o letteraria. Se esercizio, spiega il meccanismo della regola.',
+    storia:'STORIA: colloca nel tempo. Struttura: quando, chi, cosa, perche. Cause, eventi, conseguenze.',
+    scienze:'SCIENZE: spiega con esempio concreto. Identifica il principio scientifico. Collega alla vita reale.',
+    inglese:'INGLESE: identifica struttura grammaticale (tense, form). Esempi di ogni regola. Includi traduzione italiana.',
+    geografia:'GEOGRAFIA: colloca geograficamente. Caratteristiche fisiche, climatiche, umane. Collega alla vita quotidiana.'
+  };
+  return materia&&extra[materia]?('
+
+SPECIALIZZAZIONE — '+extra[materia]):'';
+}
+
+async function analizzaCompito(){
+  if(!compitiImageBase64)return;
+  var key=GEMINI_TTS_KEYS[0];
+  if(!key){
+    closeCompitiModal();
+    var em='Ho bisogno della chiave Gemini per analizzare le immagini!';
+    addBubble('aria',em);showSubtitle('aria',em);
+    playShortTTS(em,function(){goIdleAfterSpeaking();});
+    return;
+  }
+  closeCompitiModal();
+  stopListening();clearTimeout(silenceTimer);
+  setState('thinking');addTyping();setEmotion('pensierosa');
+  document.getElementById('btnCompiti').disabled=true;
+
+  var age=parseInt(userProfile.age)||10;
+  var name=userProfile.name||'amico';
+  var materia=compitiMateriaSelezionata;
+  var livello=age<=8?'bambino di '+age+' anni, elementari. Parole semplicissime, frasi brevissime.':
+              age<=11?'bambino di '+age+' anni, scuola elementare/media. Linguaggio semplice, esempi concreti.':
+              age<=15?'ragazzo/a di '+age+' anni, scuola media. Linguaggio chiaro, termini tecnici spiegati.':
+              'studente di '+age+' anni. Linguaggio preciso.';
+  var materiaExtra=getPromptMateria(materia);
+
+  var prompt='Sei ARIA, assistente scolastica. Aiuti '+name+', '+livello+(materia?'
+Materia: '+materia:'')+materiaExtra
+    +'
+
+Analizza questa immagine scolastica.
+
+Rispondi SOLO con JSON valido:
+'
+    +'{"materia":"nome materia","titolo":"titolo max 5 parole",'
+    +'"tipo_mappa":"radiale o lineare (lineare per matematica/sequenze, radiale per storia/scienze/geo)",'
+    +'"spiegazione":"spiegazione completa adatta alla eta",'
+    +'"vocale":"intro vocale max 2 frasi, tono caldo",'
+    +'"passi":[{"titolo":"Passo 1","testo":"spiegazione 2-3 frasi","tts":"versione breve da dire"}],'
+    +'"mappa":[{"titolo":"nodo","dettaglio":"spiegazione breve"}],'
+    +'"quiz":[{"domanda":"domanda?","opzioni":["giusta","sbagliata1","sbagliata2"],"corretta":0,"feedback":"Bravo perche..."}]}'
+    +'
+Passi: 3-4. Mappa: 3-5 nodi. Quiz: 3 domande con 3 opzioni, "corretta" e indice 0-2. Tutto in italiano.';
+
+  try{
+    var body={contents:[{parts:[{inline_data:{mime_type:compitiImageMime,data:compitiImageBase64}},{text:prompt}]}],generationConfig:{maxOutputTokens:1200,temperature:0.35}};
+    var res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    var data=await res.json();
+    document.getElementById('btnCompiti').disabled=false;
+    if(data.error)throw new Error(data.error.message);
+    var raw=(data.candidates[0].content.parts[0].text||'').trim();
+    var jsonStr=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+    var parsed=JSON.parse(jsonStr);
+    removeTyping();
+
+    addBubble('user','\ud83d\udcf8 Compito di '+(parsed.materia||'?')+': '+(parsed.titolo||'analisi'));
+    var testoVocale=parsed.vocale||'Ecco cosa ho trovato!';
+    conversationHistory.push({role:'user',content:'[Immagine compito: '+(parsed.materia||'')+' — '+(parsed.titolo||'')+']'});
+    conversationHistory.push({role:'assistant',content:testoVocale});
+    setEmotion('felice');
+    addBubble('aria',parsed.spiegazione||testoVocale);
+    showSubtitle('aria',testoVocale);
+
+    setState('speaking');document.getElementById('btnStop').style.display='flex';
+    if(GEMINI_TTS_KEYS&&GEMINI_TTS_KEYS.length&&!ttsRateLimited){
+      try{var w=await fetchTTS(testoVocale);setEmotion('parlando');startMouthTalk();await playWavBuffer(w,'felice',null);}catch(e){}
+    }
+
+    var mappaData=parsed.mappa&&parsed.mappa.length?parsed.mappa:null;
+    var mappaTitolo=parsed.titolo||parsed.materia||'Argomento';
+    var tipoMappa=parsed.tipo_mappa||'radiale';
+    if(mappaData){renderMappaConcettuale(mappaTitolo,mappaData,tipoMappa,parsed.materia||'');}
+
+    if(parsed.passi&&parsed.passi.length){
+      setTimeout(function(){_quizData=parsed.quiz||[];avviaPasso(parsed.passi);},400);
+    }else{goIdleAfterSpeaking();}
+
+  }catch(err){
+    document.getElementById('btnCompiti').disabled=false;removeTyping();
+    var em2='Non sono riuscita a leggere l'immagine. Prova con una foto piu nitida!';
+    addBubble('aria',em2);showSubtitle('aria',em2);setState('speaking');
+    playShortTTS(em2,function(){goIdleAfterSpeaking();});
+  }
+  compitiImageBase64=null;
+}
+
+// GUIDA PASSO-PASSO
+var _passiData=[];var _passoCorrente=0;var _quizData=[];
+
+function avviaPasso(passi){
+  _passiData=passi;_passoCorrente=0;
+  mostraPasso(0);
+  document.getElementById('passoOverlay').classList.remove('hidden');
+}
+
+function mostraPasso(idx){
+  var n=_passiData.length,p=_passiData[idx];
+  document.getElementById('passoProgLabel').textContent='PASSO '+(idx+1)+' DI '+n;
+  document.getElementById('passoBarFill').style.width=(((idx+1)/n)*100)+'%';
+  document.getElementById('passoTitolo').textContent=p.titolo||'';
+  document.getElementById('passoTesto').textContent=p.testo||'';
+  document.getElementById('passoBtnNext').textContent=idx===n-1?'\ud83c\udfaf Vai al quiz!':'\u2713 Ho capito!';
+  document.getElementById('passoBtnNext').disabled=false;
+  setState('speaking');
+  var tts=p.tts||p.testo||'';
+  if(tts&&GEMINI_TTS_KEYS&&GEMINI_TTS_KEYS.length){
+    showSubtitle('aria',tts);startMouthTalk();setEmotion('pensierosa');
+    fetchTTS(tts).then(function(wav){
+      if(wav){playWithAudioElement(wav,function(){stopMouthTalk();setEmotion('felice');hideSubtitle();setState('idle');});}
+      else{stopMouthTalk();hideSubtitle();setState('idle');}
+    }).catch(function(){stopMouthTalk();hideSubtitle();setState('idle');});
+  }
+}
+
+function avanzaPasso(skip){
+  if(!skip&&currentAudio){try{currentAudio.pause();}catch(e){}currentAudio=null;stopMouthTalk();hideSubtitle();}
+  var idx=_passoCorrente+1;
+  if(idx>=_passiData.length){
+    document.getElementById('passoOverlay').classList.add('hidden');
+    if(_quizData&&_quizData.length){setTimeout(function(){avviaQuiz();},300);}
+    else{goIdleAfterSpeaking();}
+    return;
+  }
+  _passoCorrente=idx;mostraPasso(idx);
+}
+
+function chiudiPasso(){
+  if(currentAudio){try{currentAudio.pause();}catch(e){}currentAudio=null;}
+  stopMouthTalk();hideSubtitle();
+  document.getElementById('passoOverlay').classList.add('hidden');
+  goIdleAfterSpeaking();
+}
+
+// MINI QUIZ
+var _quizCorrente=0;var _quizPunteggio=0;
+
+function avviaQuiz(){
+  _quizCorrente=0;_quizPunteggio=0;
+  document.getElementById('quizOverlay').classList.remove('hidden');
+  document.getElementById('quizRisultato').classList.add('hidden');
+  mostraQuiz(0);
+  var eta=parseInt(userProfile.age)||10;
+  var frase=eta<=10?'Adesso vediamo se hai capito! Tre domandine veloce!':
+             eta<=15?'Bene! Ora un piccolo quiz per vedere cosa hai imparato.':
+             'Perfetto. Ora verifichiamo la comprensione.';
+  playShortTTS(frase,function(){});
+}
+
+function mostraQuiz(idx){
+  var q=_quizData[idx];if(!q)return;
+  document.getElementById('quizProg').textContent='Domanda '+(idx+1)+' di '+_quizData.length;
+  document.getElementById('quizDomanda').textContent=q.domanda||'';
+  document.getElementById('quizFeedback').textContent='';
+  document.getElementById('quizBtnNext').style.display='none';
+  var optsEl=document.getElementById('quizOptions');optsEl.innerHTML='';
+  (q.opzioni||[]).forEach(function(op,i){
+    var btn=document.createElement('button');btn.className='quiz-opt';btn.textContent=op;
+    btn.onclick=function(){rispondiQuiz(idx,i,btn);};
+    optsEl.appendChild(btn);
+  });
+}
+
+function rispondiQuiz(idx,scelta,btnEl){
+  var q=_quizData[idx];if(!q)return;
+  document.querySelectorAll('.quiz-opt').forEach(function(b){b.onclick=null;});
+  var giusta=(scelta===q.corretta);
+  if(giusta){_quizPunteggio++;btnEl.classList.add('correct');}
+  else{btnEl.classList.add('wrong');document.querySelectorAll('.quiz-opt')[q.corretta].classList.add('correct');}
+  var fb=q.feedback||(giusta?'Corretto!':'Non esatto.');
+  document.getElementById('quizFeedback').textContent=fb;
+  document.getElementById('quizBtnNext').style.display='block';
+  var eta=parseInt(userProfile.age)||10;
+  var frase=giusta?(eta<=10?'Bravissimo! '+fb:'Corretto! '+fb):(eta<=10?'Quasi! '+fb:'Non esatto. '+fb);
+  setEmotion(giusta?'felice':'empatica');
+  playShortTTS(frase,function(){setEmotion('neutra');});
+}
+
+function avanzaQuiz(){
+  var idx=_quizCorrente+1;
+  if(idx>=_quizData.length){mostraRisultatoQuiz();return;}
+  _quizCorrente=idx;mostraQuiz(idx);
+}
+
+function mostraRisultatoQuiz(){
+  var n=_quizData.length,p=_quizPunteggio;
+  document.getElementById('quizOptions').innerHTML='';
+  document.getElementById('quizDomanda').textContent='';
+  document.getElementById('quizFeedback').textContent='';
+  document.getElementById('quizBtnNext').style.display='none';
+  document.getElementById('quizRisultato').classList.remove('hidden');
+  document.getElementById('quizScore').textContent=p+'/'+n;
+  var eta=parseInt(userProfile.age)||10;
+  var label=p===n?(eta<=10?'Perfetto! Sei un campione! \u2b50':'Perfetto! Tutto corretto!'):
+            p>=n-1?(eta<=10?'Quasi tutto giusto! Bravo!':'Molto bene!'):
+            p>=Math.floor(n/2)?(eta<=10?'Bene, ci sei quasi!':'Buono, ripassa un po'!'):
+            (eta<=10?'Rileggi i passi e riprova!':'Rivedi l'argomento e riprova.');
+  document.getElementById('quizScoreLabel').textContent=label;
+  var frase=p===n?'Perfetto, '+(userProfile.name||'')+'! Hai risposto giusto a tutto!':
+            p>=n-1?'Molto bene! Solo un piccolo errore.':
+            'Hai preso '+p+' su '+n+'. Rileggi i passi e riprova, ci riesci!';
+  setEmotion(p===n?'felice':'empatica');
+  playShortTTS(frase,function(){setEmotion('neutra');});
+}
+
+function chiudiQuiz(){
+  document.getElementById('quizOverlay').classList.add('hidden');
+  goIdleAfterSpeaking();
+}
+
+// ═══════════════════════════════════════════════════
+// RIPETIZIONE LIBERA — OPZIONE B
+// ═══════════════════════════════════════════════════
+var _ripetiAscolto=false;
+var _ripetiStream=null;
+var _ripetiRecorder=null;
+var _ripetiChunks=[];
+var _ripetiAnalyser=null;
+var _ripetiAnalyserCtx=null;
+var _ripetiSilenceTimer=null;
+var _ripetiVolInterval=null;
+var MATERIE_ORALI=['italiano','storia','geografia','scienze'];
+
+function isMateriaorale(){
+  var m=compitiMateriaSelezionata||(_mappaData&&_mappaData.materiaRilevata)||'';
+  return MATERIE_ORALI.indexOf(m.toLowerCase())>=0;
+}
+
+function aggiornaBottoneRipeti(){
+  var btn=document.getElementById('btnRipetiTu');
+  if(!btn)return;
+  // Mostra il pulsante se la materia è orale O se non è matematica/inglese
+  var m=(compitiMateriaSelezionata||'').toLowerCase();
+  var nascondi=(m==='matematica'||m==='inglese');
+  btn.style.display=nascondi?'none':'flex';
+}
+
+function apriRipetizione(){
+  var age=parseInt(userProfile.age)||10;
+  var titolo=_mappaData.titolo||'l'argomento';
+  var sub=age<=10
+    ?'Quando sei pronto, premi il tasto verde e prova a raccontarmi tutto quello che ricordi su '+titolo+'! Parla liberamente, senza fretta.'
+    :age<=15
+    ?'Premi il tasto verde e spiega tutto quello che sai su '+titolo+'. Parla come se stessi rispondendo a un'interrogazione.'
+    :'Premi il tasto verde e ripeti l'argomento a voce, come se stessi spiegando a qualcuno.';
+  document.getElementById('ripetiSub').textContent=sub;
+  document.getElementById('ripetiFace').className='ripeti-face';
+  document.getElementById('ripetiFace').textContent='🎙️';
+  document.getElementById('ripetiStato').textContent='';
+  document.getElementById('ripetiStato').className='ripeti-stato';
+  document.getElementById('ripetiTrascrizione').style.display='none';
+  document.getElementById('ripetiTrascrizione').textContent='';
+  document.getElementById('ripetiFeedback').style.display='none';
+  document.getElementById('ripetiScoreRow').innerHTML='';
+  document.getElementById('ripetiFeedbackTesto').textContent='';
+  document.getElementById('ripetiBtnStart').disabled=false;
+  document.getElementById('ripetiBtnStart').textContent='🎤 Inizia a parlare';
+  document.getElementById('ripetiOverlay').classList.remove('hidden');
+  // ARIA dice il via
+  var frase=age<=10
+    ?'Dai '+( userProfile.name||'')+', racconta tutto quello che sai! Io ascolto!'
+    :'Quando sei pronto inizia a parlare. Io ascolto.';
+  playShortTTS(frase,function(){});
+}
+
+function chiudiRipetizione(){
+  _fermaRipetiAscolto();
+  document.getElementById('ripetiOverlay').classList.add('hidden');
+}
+
+async function avviaAscoltoRipetizione(){
+  if(_ripetiAscolto)return;
+  _ripetiAscolto=true;
+  document.getElementById('ripetiBtnStart').disabled=true;
+  document.getElementById('ripetiBtnStart').textContent='⏹ In ascolto...';
+  document.getElementById('ripetiFace').className='ripeti-face listening';
+  document.getElementById('ripetiFace').textContent='👂';
+  document.getElementById('ripetiStato').textContent='TI STO ASCOLTANDO...';
+  document.getElementById('ripetiStato').className='ripeti-stato go';
+  document.getElementById('ripetiTrascrizione').style.display='none';
+  document.getElementById('ripetiFeedback').style.display='none';
+  // Annuncia inizio
+  var age=parseInt(userProfile.age)||10;
+  var via=age<=10?'Via! Ti ascolto!':'Puoi iniziare.';
+  await new Promise(function(res){playShortTTS(via,res);});
+  try{
+    var stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    _ripetiStream=stream;_ripetiChunks=[];
+    var mimeType=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm';
+    _ripetiRecorder=new MediaRecorder(stream,{mimeType:mimeType});
+    _ripetiRecorder.ondataavailable=function(e){if(e.data&&e.data.size>0)_ripetiChunks.push(e.data);};
+    _ripetiRecorder.onstop=function(){_elaboraRipetizione();};
+    _ripetiRecorder.start(200);
+    // Analisi volume per silenzio prolungato (8s = studente ha finito)
+    _ripetiAnalyserCtx=new(window.AudioContext||window.webkitAudioContext)();
+    var src=_ripetiAnalyserCtx.createMediaStreamSource(stream);
+    _ripetiAnalyser=_ripetiAnalyserCtx.createAnalyser();_ripetiAnalyser.fftSize=512;
+    src.connect(_ripetiAnalyser);
+    var silentMs=0,spokenMs=0;
+    var buf=new Uint8Array(_ripetiAnalyser.frequencyBinCount);
+    _ripetiVolInterval=setInterval(function(){
+      _ripetiAnalyser.getByteFrequencyData(buf);
+      var vol=buf.reduce(function(a,b){return a+b;},0)/buf.length;
+      if(vol<SILENCE_THRESHOLD){silentMs+=100;if(silentMs>=8000&&spokenMs>=1500){_fermaRipetiAscolto(true);}}
+      else{silentMs=0;spokenMs+=100;}
+    },100);
+  }catch(e){
+    _ripetiAscolto=false;
+    document.getElementById('ripetiStato').textContent='Microfono non disponibile.';
+    document.getElementById('ripetiBtnStart').disabled=false;
+    document.getElementById('ripetiBtnStart').textContent='🎤 Inizia a parlare';
+  }
+}
+
+function _fermaRipetiAscolto(auto){
+  clearInterval(_ripetiVolInterval);_ripetiVolInterval=null;
+  clearTimeout(_ripetiSilenceTimer);_ripetiSilenceTimer=null;
+  if(_ripetiAnalyserCtx){try{_ripetiAnalyserCtx.close();}catch(e){}_ripetiAnalyserCtx=null;}_ripetiAnalyser=null;
+  if(_ripetiRecorder&&_ripetiRecorder.state!=='inactive'){_ripetiRecorder.stop();}
+  if(_ripetiStream){_ripetiStream.getTracks().forEach(function(t){t.stop();});_ripetiStream=null;}
+  _ripetiAscolto=false;
+  if(!auto){
+    document.getElementById('ripetiBtnStart').disabled=false;
+    document.getElementById('ripetiBtnStart').textContent='🎤 Inizia a parlare';
+    document.getElementById('ripetiFace').className='ripeti-face';
+    document.getElementById('ripetiFace').textContent='🎙️';
+    document.getElementById('ripetiStato').textContent='';
+    document.getElementById('ripetiStato').className='ripeti-stato';
+  }else{
+    document.getElementById('ripetiFace').className='ripeti-face thinking';
+    document.getElementById('ripetiFace').textContent='⏳';
+    document.getElementById('ripetiStato').textContent='STO VALUTANDO...';
+    document.getElementById('ripetiStato').className='ripeti-stato wait';
+  }
+}
+
+async function _elaboraRipetizione(){
+  var key=GEMINI_TTS_KEYS[0];if(!key)return;
+  if(!_ripetiChunks.length)return;
+  var blob=new Blob(_ripetiChunks,{type:'audio/webm'});
+  // Step 1: trascrivi con Gemini
+  var reader=new FileReader();
+  reader.onload=async function(ev){
+    var b64=ev.target.result.split(',')[1];
+    var trascrizione='';
+    try{
+      var tres=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{inline_data:{mime_type:'audio/webm',data:b64}},{text:'Trascrivi esattamente quello che viene detto in italiano. Rispondi solo con la trascrizione, nessun altro testo.'}]}]})
+      });
+      var tdata=await tres.json();
+      trascrizione=((tdata.candidates||[])[0]||{}).content&&tdata.candidates[0].content.parts[0].text||'';
+    }catch(e){trascrizione='';}
+    if(!trascrizione.trim()){
+      document.getElementById('ripetiStato').textContent='Non ho sentito nulla. Riprova!';
+      document.getElementById('ripetiBtnStart').disabled=false;
+      document.getElementById('ripetiBtnStart').textContent='🎤 Riprova';
+      document.getElementById('ripetiFace').className='ripeti-face';
+      document.getElementById('ripetiFace').textContent='🎙️';
+      return;
+    }
+    // Mostra trascrizione
+    var trEl=document.getElementById('ripetiTrascrizione');
+    trEl.textContent='“'+trascrizione+'”';
+    trEl.style.display='block';
+    // Step 2: valuta con Gemini
+    var age=parseInt(userProfile.age)||10;
+    var punti=(_mappaData.nodi||[]).map(function(n){return n.titolo+(n.dettaglio?': '+n.dettaglio:'');}).join('
+');
+    var livello=age<=10?'bambino di '+age+' anni. Sii incoraggiante e gentile, evidenzia prima le cose giuste.':
+                age<=15?'ragazzo/a di '+age+' anni. Tono da insegnante amichevole.':
+                'studente di '+age+' anni. Valutazione precisa.';
+    var vPrompt='Hai ascoltato uno studente ripetere un argomento. Stai aiutando un '+livello
+      +'
+
+ARGOMENTO: '+(_mappaData.titolo||'')
+      +'
+PUNTI CHIAVE che doveva coprire:
+'+punti
+      +'
+QUELLO CHE HA DETTO LO STUDENTE:
+'+trascrizione
+      +'
+Valuta la ripetizione. Rispondi SOLO con JSON:
+'
+      +'{"punteggio":0-100,"punti_ok":["cosa ha detto bene"],"punti_mancanti":["cosa ha dimenticato"],'
+      +'"imprecisioni":["eventuali cose dette in modo impreciso o sbagliato"],'
+      +'"vocale":"feedback da dire ad alta voce, max 3 frasi, tono '+( age<=10?'incoraggiante e giocoso':'diretto ma costruttivo')+'","emoji":"'+( age<=10?'stella o trofeo':'ok o studio')+'"}'
+      +'
+Se ha detto tutto: punteggio 90-100. Se ha detto la maggior parte: 70-89. Se ha detto poco: sotto 70. Rispondi in italiano.';
+    try{
+      var vres=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{text:vPrompt}]}],generationConfig:{maxOutputTokens:600,temperature:0.3}})
+      });
+      var vdata=await vres.json();
+      var raw=((vdata.candidates||[])[0]||{}).content&&vdata.candidates[0].content.parts[0].text||'{}';
+      var jsonStr=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+      var val=JSON.parse(jsonStr);
+      _mostraFeedbackRipetizione(val);
+    }catch(e){
+      document.getElementById('ripetiStato').textContent='Errore nella valutazione. Riprova.';
+      document.getElementById('ripetiBtnStart').disabled=false;
+      document.getElementById('ripetiBtnStart').textContent='🎤 Riprova';
+    }
+  };
+  reader.readAsDataURL(blob);
+}
+
+function _mostraFeedbackRipetizione(val){
+  var age=parseInt(userProfile.age)||10;
+  var punteggio=val.punteggio||0;
+  var puntiOk=val.punti_ok||[];
+  var puntiMancanti=val.punti_mancanti||[];
+  var imprecisioni=val.imprecisioni||[];
+
+  // Colore punteggio
+  var scoreColor=punteggio>=80?'#34d399':punteggio>=60?'#fbbf24':'#f472b6';
+  var scoreRow=document.getElementById('ripetiScoreRow');
+  scoreRow.innerHTML='<div class="ripeti-score-pill" style="background:'+scoreColor+'22;color:'+scoreColor+';border:1px solid '+scoreColor+'44;">'+punteggio+'/100</div>';
+  if(puntiOk.length)scoreRow.innerHTML+='<div class="ripeti-score-pill" style="background:rgba(52,211,153,0.1);color:#34d399;border:1px solid rgba(52,211,153,0.25);">'+( age<=12?'✓ '+puntiOk.length+' cose giuste':'✓ '+puntiOk.length+' corretti')+'</div>';
+  if(puntiMancanti.length)scoreRow.innerHTML+='<div class="ripeti-score-pill" style="background:rgba(251,191,36,0.1);color:#fbbf24;border:1px solid rgba(251,191,36,0.25);">'+( age<=12?'⚠ '+puntiMancanti.length+' da aggiungere':'⚠ '+puntiMancanti.length+' mancanti')+'</div>';
+
+  // Testo feedback
+  var html='';
+  if(puntiOk.length){html+='<div style="margin-bottom:8px;"><span style="color:#34d399;font-weight:700;font-size:0.72rem;">✓ '+(age<=12?'Hai detto bene:':'Corretto:')+'</span><ul style="margin:4px 0 0 12px;font-size:0.76rem;color:#9ca3af;">';puntiOk.forEach(function(p){html+='<li>'+escHtml(p)+'</li>';});html+='</ul></div>';}
+  if(puntiMancanti.length){html+='<div style="margin-bottom:8px;"><span style="color:#fbbf24;font-weight:700;font-size:0.72rem;">⚠ '+(age<=12?'Non hai detto:':'Da aggiungere:')+'</span><ul style="margin:4px 0 0 12px;font-size:0.76rem;color:#9ca3af;">';puntiMancanti.forEach(function(p){html+='<li>'+escHtml(p)+'</li>';});html+='</ul></div>';}
+  if(imprecisioni.length){html+='<div><span style="color:#f472b6;font-weight:700;font-size:0.72rem;">✎ '+(age<=12?'Attenzione a:':'Imprecisioni:')+'</span><ul style="margin:4px 0 0 12px;font-size:0.76rem;color:#9ca3af;">';imprecisioni.forEach(function(p){html+='<li>'+escHtml(p)+'</li>';});html+='</ul></div>';}
+
+  document.getElementById('ripetiFeedbackTesto').innerHTML=html;
+  document.getElementById('ripetiFeedback').style.display='block';
+  document.getElementById('ripetiFace').className='ripeti-face';
+  document.getElementById('ripetiFace').textContent=punteggio>=80?'⭐':'💪';
+  document.getElementById('ripetiStato').textContent='';
+  document.getElementById('ripetiStato').className='ripeti-stato';
+  document.getElementById('ripetiBtnStart').disabled=false;
+  document.getElementById('ripetiBtnStart').textContent='🔄 Riprova';
+
+  // TTS feedback vocale
+  var testoVocale=val.vocale||( punteggio>=80?'Ottimo! Hai detto quasi tutto!':'Bene! Rileggi le parti che hai dimenticato e riprova.');
+  setEmotion(punteggio>=80?'felice':'empatica');
+  playShortTTS(testoVocale,function(){setEmotion('neutra');});
+}
+
+// Dati mappa globali (servono al PDF)
+var _mappaData={titolo:'',nodi:[]};
+
+function renderMappaConcettuale(titolo,nodi,tipoMappa,materiaRilevata){
+  _mappaData={titolo:titolo,nodi:nodi,tipo:tipoMappa||'radiale',materiaRilevata:materiaRilevata||compitiMateriaSelezionata||''};
+  aggiornaBottoneRipeti();
+  document.getElementById('mappaCenterNode').textContent=titolo||'Argomento';
+  var container=document.getElementById('mappaBranches');
+  container.innerHTML='';
+  container.style.padding='0';
+  var lineare=(tipoMappa==='lineare');
+  var svg=lineare?buildMappaLineare(titolo,nodi,{w:container.offsetWidth||320}):buildMappaSvg(titolo,nodi,{w:container.offsetWidth||320,mobile:true});
+  container.appendChild(svg);
+  document.getElementById('mappaSheet').classList.remove('hidden');
+}
+
+function buildMappaLineare(titolo,nodi,opts){
+  var W=opts.w||320;
+  var colors=['#f472b6','#34d399','#fbbf24','#60a5fa','#a78bfa','#fb923c'];
+  var n=nodi.length;
+  var nodeH=38, nodeW=W-32, gap=28, headerH=44, paddingBot=12;
+  var svgH=headerH+(nodeH+gap)*n+paddingBot;
+  var NS='http://www.w3.org/2000/svg';
+  var svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('viewBox','0 0 '+W+' '+svgH);
+  svg.setAttribute('width','100%');
+  svg.setAttribute('style','display:block;');
+  function mk(tag,a){var e=document.createElementNS(NS,tag);Object.keys(a).forEach(function(k){e.setAttribute(k,a[k]);});return e;}
+  function txt(t,x,y,fill,sz,w){var e=mk('text',{x:x,y:y,fill:fill,'font-size':sz,'font-weight':w||'normal','text-anchor':'middle','dominant-baseline':'middle','font-family':'Nunito,sans-serif'});e.textContent=t;return e;}
+  // Nodo titolo centrale in cima
+  var cY=headerH/2;
+  svg.appendChild(mk('rect',{x:W/2-70,y:cY-12,width:140,height:24,rx:'12',fill:'#7c6dfa'}));
+  svg.appendChild(txt(titolo,W/2,cY,'#fff',11,'bold'));
+  // Freccia dal titolo al primo nodo
+  if(n>0){
+    var arrowY1=cY+12, arrowY2=headerH+8;
+    svg.appendChild(mk('line',{x1:W/2,y1:arrowY1,x2:W/2,y2:arrowY2,stroke:'#7c6dfa','stroke-width':'1.5',opacity:'0.5'}));
+  }
+  // Nodi in colonna
+  nodi.forEach(function(nodo,i){
+    var c=colors[i%colors.length];
+    var ny=headerH+i*(nodeH+gap);
+    var nx=16;
+    // Freccia verso il prossimo (non nell'ultimo)
+    if(i<n-1){
+      var fy=ny+nodeH, fy2=ny+nodeH+gap;
+      svg.appendChild(mk('line',{x1:W/2,y1:fy,x2:W/2,y2:fy2-6,stroke:c,'stroke-width':'1.5',opacity:'0.6'}));
+      // Punta freccia
+      var ap=mk('polygon',{points:(W/2-4)+','+(fy2-6)+' '+(W/2+4)+','+(fy2-6)+' '+(W/2)+','+fy2,fill:c,opacity:'0.8'});
+      svg.appendChild(ap);
+    }
+    // Card nodo
+    svg.appendChild(mk('rect',{x:nx,y:ny,width:nodeW,height:nodeH,rx:'10',fill:'#161829',stroke:c,'stroke-width':'1.5'}));
+    // Numero step
+    svg.appendChild(mk('rect',{x:nx+4,y:ny+nodeH/2-10,width:20,height:20,rx:'10',fill:c}));
+    svg.appendChild(txt(''+(i+1),nx+14,ny+nodeH/2,'#fff',9,'bold'));
+    // Titolo nodo
+    svg.appendChild(txt(nodo.titolo||'',nx+20+((nodeW-24)/2),ny+nodeH/2,c,9.5,'bold'));
+    // Click dettaglio
+    var clickRect=mk('rect',{x:nx,y:ny,width:nodeW,height:nodeH,rx:'10',fill:'transparent',style:'cursor:pointer'});
+    svg.appendChild(clickRect);
+    (function(color,detail){
+      clickRect.addEventListener('click',function(e){
+        e.stopPropagation();
+        svg.querySelectorAll('.tip').forEach(function(t){t.remove();});
+        var tg=document.createElementNS(NS,'g');tg.setAttribute('class','tip');
+        var tW=nodeW-8,tH=32;
+        var tx=nx+4,ty2=ny+nodeH+2;
+        if(ty2+tH>svgH-4)ty2=ny-tH-2;
+        tg.appendChild(mk('rect',{x:tx,y:ty2,width:tW,height:tH,rx:'7',fill:'#1e2035',stroke:color,'stroke-width':'1',opacity:'0.97'}));
+        var dwords=(detail||'').split(' '),lines=[],cur='';
+        dwords.forEach(function(w){if((cur+' '+w).trim().length>32&&cur){lines.push(cur.trim());cur=w;}else{cur+=' '+w;}});
+        if(cur.trim())lines.push(cur.trim());lines=lines.slice(0,2);
+        var lh=9,startY2=ty2+(tH/2)-((lines.length-1)*lh/2);
+        lines.forEach(function(l,li){tg.appendChild(txt(l,tx+tW/2,startY2+li*lh,'#c4b5fd',7.5,'normal'));});
+        svg.appendChild(tg);
+        setTimeout(function(){if(tg.parentNode)tg.remove();},3500);
+        spiegaNodoVoce(nodo.titolo||'',detail||'');
+      });
+    })(c,nodo.dettaglio);
+  });
+  return svg;
+}
+
+function buildMappaSvg(titolo,nodi,opts){
+  var W=opts.w||320, mobile=opts.mobile||false;
+  var colors=['#f472b6','#34d399','#fbbf24','#60a5fa','#a78bfa','#fb923c'];
+  var n=nodi.length;
+  var cx=W/2, cy=mobile?110:130;
+  var orb=mobile?84:110;
+  var cRx=mobile?52:64, cRy=mobile?18:22;
+  var sRx=mobile?46:58, sRy=mobile?14:18;
+  var svgH=mobile?(cy+orb+sRy+28):(cy+orb+sRy+36);
+  var svgNS='http://www.w3.org/2000/svg';
+  var svg=document.createElementNS(svgNS,'svg');
+  svg.setAttribute('viewBox','0 0 '+W+' '+svgH);
+  svg.setAttribute('width','100%');
+  svg.setAttribute('style','display:block;');
+  function mk(tag,attrs){var el=document.createElementNS(svgNS,tag);Object.keys(attrs).forEach(function(k){el.setAttribute(k,attrs[k]);});return el;}
+  function mkText(txt,x,y,fill,size,weight){var t=mk('text',{x:x,y:y,fill:fill,'font-size':size,'font-weight':weight||'normal','text-anchor':'middle','dominant-baseline':'middle','font-family':'Nunito,sans-serif'});t.textContent=txt;return t;}
+  var startAngle=-Math.PI/2;
+  var positions=nodi.map(function(_,i){var angle=startAngle+(2*Math.PI/n)*i;return{x:cx+orb*Math.cos(angle),y:cy+orb*Math.sin(angle),angle:angle};});
+  var defs=mk('defs',{});
+  colors.forEach(function(c,i){var marker=mk('marker',{id:'arr'+i,markerWidth:'7',markerHeight:'7',refX:'5',refY:'3.5',orient:'auto'});var poly=mk('polygon',{points:'0 0, 7 3.5, 0 7',fill:c,opacity:'0.85'});marker.appendChild(poly);defs.appendChild(marker);});
+  svg.appendChild(defs);
+  positions.forEach(function(pos,i){
+    var c=colors[i%colors.length];
+    var dx=pos.x-cx, dy=pos.y-cy;
+    var len=Math.sqrt(dx*dx+dy*dy)||1;
+    var sx=cx+(dx/len)*cRx*1.1, sy=cy+(dy/len)*cRy*1.3;
+    var ex=pos.x-(dx/len)*sRx*0.9, ey=pos.y-(dy/len)*sRy*1.1;
+    var mx2=(sx+ex)/2, my2=(sy+ey)/2;
+    var perp={x:-(ey-sy),y:(ex-sx)};
+    var pl=Math.sqrt(perp.x*perp.x+perp.y*perp.y)||1;
+    var curve=(mobile?14:18)*(i%2===0?1:-1);
+    var qx=mx2+(perp.x/pl)*curve, qy=my2+(perp.y/pl)*curve;
+    var path=mk('path',{d:'M'+sx.toFixed(1)+' '+sy.toFixed(1)+' Q'+qx.toFixed(1)+' '+qy.toFixed(1)+' '+ex.toFixed(1)+' '+ey.toFixed(1),fill:'none',stroke:c,'stroke-width':mobile?'1.4':'1.8',opacity:'0.75','marker-end':'url(#arr'+(i%colors.length)+')'});
+    svg.appendChild(path);
+  });
+  var cg=mk('g',{});
+  cg.appendChild(mk('ellipse',{cx:cx+2,cy:cy+3,rx:cRx,ry:cRy,fill:'#000',opacity:'0.18'}));
+  cg.appendChild(mk('ellipse',{cx:cx,cy:cy,rx:cRx,ry:cRy,fill:'#7c6dfa'}));
+  var words=titolo.split(' ');
+  if(words.length<=2||titolo.length<=14){cg.appendChild(mkText(titolo,cx,cy,'#fff',mobile?11:13,'bold'));}
+  else{var half=Math.ceil(words.length/2);cg.appendChild(mkText(words.slice(0,half).join(' '),cx,cy-(mobile?5:6),'#fff',mobile?10:12,'bold'));cg.appendChild(mkText(words.slice(half).join(' '),cx,cy+(mobile?5:6),'#fff',mobile?10:12,'bold'));}
+  svg.appendChild(cg);
+  positions.forEach(function(pos,i){
+    var c=colors[i%colors.length];
+    var nodo=nodi[i];
+    var ng=mk('g',{});
+    ng.appendChild(mk('ellipse',{cx:pos.x+2,cy:pos.y+3,rx:sRx,ry:sRy,fill:'#000',opacity:'0.15'}));
+    ng.appendChild(mk('ellipse',{cx:pos.x,cy:pos.y,rx:sRx,ry:sRy,fill:'#161829',stroke:c,'stroke-width':mobile?'1.5':'2'}));
+    var titWords=(nodo.titolo||'').split(' ');
+    if(titWords.length<=2||(nodo.titolo||'').length<=12){ng.appendChild(mkText(nodo.titolo||'',pos.x,pos.y,c,mobile?9:11,'bold'));}
+    else{var h2=Math.ceil(titWords.length/2);ng.appendChild(mkText(titWords.slice(0,h2).join(' '),pos.x,pos.y-(mobile?4:5),c,mobile?8:10,'bold'));ng.appendChild(mkText(titWords.slice(h2).join(' '),pos.x,pos.y+(mobile?4:5),c,mobile?8:10,'bold'));}
+    svg.appendChild(ng);
+    ng.style.cursor='pointer';
+    (function(node,color,titolo_nodo,detail,idx2){
+      node.addEventListener('click',function(e){
+        e.stopPropagation();
+        svg.querySelectorAll('.tip').forEach(function(t){t.remove();});
+        // Tooltip visivo
+        var tg=mk('g',{'class':'tip'});
+        var tW=mobile?130:160, tH=mobile?36:44;
+        var tx=Math.max(tW/2+4,Math.min(W-tW/2-4,pos.x));
+        var ty=pos.y+sRy+6;
+        if(ty+tH>svgH-4)ty=pos.y-sRy-tH-6;
+        tg.appendChild(mk('rect',{x:tx-tW/2,y:ty,width:tW,height:tH,rx:'8',fill:'#1e2035',stroke:color,'stroke-width':'1.2',opacity:'0.97'}));
+        var dtext=detail||'';
+        var maxCh=mobile?22:28;
+        var lines=[];
+        var dwords=dtext.split(' ');
+        var cur='';
+        dwords.forEach(function(w){if((cur+' '+w).trim().length>maxCh&&cur){lines.push(cur.trim());cur=w;}else{cur+=' '+w;}});
+        if(cur.trim())lines.push(cur.trim());
+        lines=lines.slice(0,3);
+        var lh=mobile?9:11;
+        var startTy=ty+(tH/2)-((lines.length-1)*lh/2);
+        lines.forEach(function(l,li){tg.appendChild(mkText(l,tx,startTy+li*lh,'#c4b5fd',mobile?7.5:9,'normal'));});
+        svg.appendChild(tg);
+        setTimeout(function(){if(tg.parentNode)tg.remove();},4000);
+        // Spiegazione vocale ARIA
+        spiegaNodoVoce(titolo_nodo,detail);
+      });
+    })(ng,c,nodo.titolo,nodo.dettaglio,i);
+  });
+  return svg;
+}
+
+function closeMappaSheet(){
+  document.getElementById('mappaSheet').classList.add('hidden');
+}
+
+// Spiegazione vocale al tap su un nodo della mappa
+function spiegaNodoVoce(titoloNodo,dettaglio){
+  if(!GEMINI_TTS_KEYS||!GEMINI_TTS_KEYS.length)return;
+  // Non interrompere se ARIA sta già facendo altro (thinking/speaking)
+  if(VOICE_STATE==='thinking')return;
+  // Ferma audio precedente
+  if(currentAudio){try{currentAudio.pause();}catch(e){}currentAudio=null;}
+  stopMouthTalk();
+  // Costruisce frase in base all'età
+  var age=parseInt(userProfile.age)||10;
+  var testo;
+  if(age<=8){
+    testo=titoloNodo+'... '+dettaglio+'!';
+  }else if(age<=11){
+    testo='Questo è '+titoloNodo+': '+dettaglio+'.';
+  }else if(age<=15){
+    testo=titoloNodo+': '+dettaglio+'.';
+  }else{
+    testo=titoloNodo+'. '+dettaglio+'.';
+  }
+  // Mostra subtitle
+  showSubtitle('aria',testo);
+  setEmotion('pensierosa');
+  startMouthTalk();
+  fetchTTS(testo).then(function(wav){
+    if(wav){
+      playWithAudioElement(wav,function(){
+        stopMouthTalk();
+        setEmotion('felice');
+        hideSubtitle();
+      });
+    }else{
+      stopMouthTalk();hideSubtitle();
+    }
+  }).catch(function(){
+    stopMouthTalk();hideSubtitle();
+  });
+}
+
+function scaricaMappaPdf(){
+  var jsPDF=window.jspdf&&window.jspdf.jsPDF;
+  if(!jsPDF){alert('jsPDF non caricato, riprova tra un secondo.');return;}
+
+  var titolo=_mappaData.titolo||document.getElementById('mappaCenterNode').textContent||'Mappa';
+  var nodi=_mappaData.nodi||[];
+  var tipoMappa=_mappaData.tipo||'radiale';
+  var nome=userProfile.name||'';
+  var age=parseInt(userProfile.age)||0;
+  var oggi=new Date();
+  var dataStr=oggi.getDate()+'/'+(oggi.getMonth()+1)+'/'+oggi.getFullYear();
+
+  // ── PDF landscape per avere più spazio per la mappa ──
+  var doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  var W=297,H=210;
+
+  // Sfondo
+  doc.setFillColor(13,15,26);
+  doc.rect(0,0,W,H,'F');
+
+  // Header
+  doc.setFillColor(22,24,41);
+  doc.roundedRect(0,0,W,22,0,0,'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(16);
+  doc.setTextColor(124,109,250);
+  doc.text('ARIA',10,14);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7);
+  doc.setTextColor(107,114,128);
+  doc.text('Mappa Concettuale',10,19);
+  doc.setFontSize(7);
+  doc.setTextColor(200,205,220);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(10);
+  doc.text(titolo,W/2,13,{align:'center'});
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7);
+  doc.setTextColor(107,114,128);
+  if(nome)doc.text('Studente: '+nome+(age?' · '+age+' anni':''),W-10,10,{align:'right'});
+  doc.text(dataStr,W-10,16,{align:'right'});
+
+  // ── Layout mappa a ragno ──
+  var colors=[
+    [244,114,182],[52,211,153],[251,191,36],
+    [96,165,250],[167,139,250],[251,146,60]
+  ];
+  var n=nodi.length;
+  if(n===0){doc.save('mappa.pdf');return;}
+
+  var cx=W/2, cy=H/2+6;
+  var orb=62;          // raggio orbita
+  var cRx=32, cRy=11;  // ellisse centrale
+  var sRx=30, sRy=10;  // ellisse satellite
+
+  // Angoli distribuiti
+  var startAngle=-Math.PI/2;
+  var positions=nodi.map(function(_,i){
+    var angle=startAngle+(2*Math.PI/n)*i;
+    return{x:cx+orb*Math.cos(angle), y:cy+orb*Math.sin(angle)};
+  });
+
+  // Connettori
+  positions.forEach(function(pos,i){
+    var c=colors[i%colors.length];
+    var dx=pos.x-cx, dy=pos.y-cy;
+    var len=Math.sqrt(dx*dx+dy*dy)||1;
+    var sx=cx+(dx/len)*cRx*1.05, sy=cy+(dy/len)*cRy*1.2;
+    var ex=pos.x-(dx/len)*sRx*1.0, ey=pos.y-(dy/len)*sRy*1.15;
+    // Curva quadratica — punto di controllo laterale
+    var mx2=(sx+ex)/2, my2=(sy+ey)/2;
+    var perp={x:-(ey-sy),y:(ex-sx)};
+    var pl=Math.sqrt(perp.x*perp.x+perp.y*perp.y)||1;
+    var curve=8*(i%2===0?1:-1);
+    var qx=mx2+(perp.x/pl)*curve, qy=my2+(perp.y/pl)*curve;
+    doc.setDrawColor(c[0],c[1],c[2]);
+    doc.setLineWidth(0.5);
+    doc.setLineDashPattern([],[]);
+    // Approssima curva con segmenti
+    var steps=10;
+    var pts=[];
+    for(var t=0;t<=steps;t++){
+      var tt=t/steps;
+      var bx=(1-tt)*(1-tt)*sx+2*(1-tt)*tt*qx+tt*tt*ex;
+      var by=(1-tt)*(1-tt)*sy+2*(1-tt)*tt*qy+tt*tt*ey;
+      pts.push([bx,by]);
+    }
+    for(var s=0;s<pts.length-1;s++){
+      doc.line(pts[s][0],pts[s][1],pts[s+1][0],pts[s+1][1]);
+    }
+    // Punta freccia
+    var lastPt=pts[pts.length-1];
+    var prevPt=pts[pts.length-3];
+    var adx=lastPt[0]-prevPt[0], ady=lastPt[1]-prevPt[1];
+    var al=Math.sqrt(adx*adx+ady*ady)||1;
+    var ax=adx/al, ay=ady/al;
+    var arrLen=2.8;
+    var p1=[lastPt[0]-arrLen*ax+arrLen*0.5*(-ay), lastPt[1]-arrLen*ay+arrLen*0.5*(ax)];
+    var p2=[lastPt[0]-arrLen*ax-arrLen*0.5*(-ay), lastPt[1]-arrLen*ay-arrLen*0.5*(ax)];
+    doc.setFillColor(c[0],c[1],c[2]);
+    doc.triangle(lastPt[0],lastPt[1],p1[0],p1[1],p2[0],p2[1],'F');
+  });
+
+  // Nodo centrale
+  doc.setFillColor(124,109,250);
+  doc.ellipse(cx,cy,cRx,cRy,'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  doc.setTextColor(255,255,255);
+  var cWords=titolo.split(' ');
+  if(cWords.length<=2||titolo.length<=14){
+    doc.text(titolo,cx,cy,{align:'center',baseline:'middle'});
+  }else{
+    var ch=Math.ceil(cWords.length/2);
+    doc.text(cWords.slice(0,ch).join(' '),cx,cy-3,{align:'center',baseline:'middle'});
+    doc.text(cWords.slice(ch).join(' '),cx,cy+3,{align:'center',baseline:'middle'});
+  }
+
+  // Nodi satellite + legenda dettagli sotto
+  positions.forEach(function(pos,i){
+    var c=colors[i%colors.length];
+    var nodo=nodi[i];
+    // Ellisse satellite
+    doc.setFillColor(16,18,35);
+    doc.ellipse(pos.x+1,pos.y+1.5,sRx,sRy,'F'); // ombra
+    doc.setFillColor(16,18,35);
+    doc.setDrawColor(c[0],c[1],c[2]);
+    doc.setLineWidth(0.8);
+    doc.ellipse(pos.x,pos.y,sRx,sRy,'FD');
+    // Testo nodo
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(c[0],c[1],c[2]);
+    var tWords=(nodo.titolo||'').split(' ');
+    if(tWords.length<=2||(nodo.titolo||'').length<=13){
+      doc.text(nodo.titolo||'',pos.x,pos.y,{align:'center',baseline:'middle'});
+    }else{
+      var th=Math.ceil(tWords.length/2);
+      doc.text(tWords.slice(0,th).join(' '),pos.x,pos.y-2.5,{align:'center',baseline:'middle'});
+      doc.text(tWords.slice(th).join(' '),pos.x,pos.y+2.5,{align:'center',baseline:'middle'});
+    }
+  });
+
+  // ── Legenda dettagli in basso ──
+  var legY=H-36;
+  doc.setFillColor(22,24,41);
+  doc.roundedRect(8,legY,W-16,34,3,3,'F');
+  doc.setFont('helvetica','normal');
+  var colW=(W-16)/Math.min(n,3);
+  var rowH=16;
+  nodi.forEach(function(nodo,i){
+    var c=colors[i%colors.length];
+    var col=i%3;
+    var row=Math.floor(i/3);
+    var lx=10+col*colW;
+    var ly=legY+4+row*rowH;
+    // Dot
+    doc.setFillColor(c[0],c[1],c[2]);
+    doc.circle(lx+3,ly+3,2,'F');
+    // Titolo
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7);
+    doc.setTextColor(c[0],c[1],c[2]);
+    doc.text(nodo.titolo||'',lx+7,ly+3.5);
+    // Dettaglio
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(180,185,210);
+    var dLines=doc.splitTextToSize(nodo.dettaglio||'',colW-10);
+    dLines.slice(0,2).forEach(function(dl,di){doc.text(dl,lx+7,ly+8+di*4);});
+  });
+
+  // Footer
+  doc.setFillColor(13,15,26);
+  doc.rect(0,H-7,W,7,'F');
+  doc.setFontSize(6);
+  doc.setTextColor(107,114,128);
+  doc.text('Generato da ARIA · '+dataStr,W/2,H-2,{align:'center'});
+
+  var filename='mappa_'+titolo.replace(/[^a-zA-Z0-9_\u00e0\u00e8\u00e9\u00ec\u00f2\u00f9 ]/g,'').replace(/\s+/g,'_').substring(0,40)+'.pdf';
+  doc.save(filename);
+}
+
+function escHtml(t){
+  return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 window.onload=function(){
   document.addEventListener('touchmove',function(e){moveEyes(e.touches[0].clientX,e.touches[0].clientY);});
