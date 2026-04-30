@@ -1493,11 +1493,9 @@ function getPromptMateria(materia){
 
 async function analizzaCompito(){
   if(!compitiImageBase64)return;
-  var key=GEMINI_TTS_KEYS[geminiTtsKeyIndex]||GEMINI_TTS_KEYS[0];
-  console.log('[Compiti] Uso chiave Gemini index',geminiTtsKeyIndex,'mime:',compitiImageMime,'base64 len:',compitiImageBase64?compitiImageBase64.length:0);
-  if(!key){
+  if(!GROQ_KEYS.length){
     closeCompitiModal();
-    var em='Ho bisogno della chiave Gemini per analizzare le immagini!';
+    var em='Ho bisogno della chiave Groq per analizzare le immagini!';
     addBubble('aria',em);showSubtitle('aria',em);
     playShortTTS(em,function(){goIdleAfterSpeaking();});
     return;
@@ -1516,55 +1514,79 @@ async function analizzaCompito(){
               'studente di '+age+' anni. Linguaggio preciso.';
   var materiaExtra=getPromptMateria(materia);
 
-  var prompt='Sei ARIA, assistente scolastica. Aiuti '+name+', '+livello+(materia?'\nMateria: '+materia:'')+materiaExtra
-    +'\n\nHai ricevuto un\'immagine scolastica. Segui questi due passi nell\'ordine:\n'
-    +'PASSO 1 — OCR: Trascrivi fedelmente tutto il testo visibile nell\'immagine (testo stampato, scritto a mano, formule, numeri, titoli, istruzioni). Se non c\'e\' testo scrivi "nessun testo".\n'
-    +'PASSO 2 — ANALISI: Basandoti sull\'immagine E sul testo trascritto, analizza il contenuto scolastico.\n'
-    +'\nRispondi SOLO con JSON valido (nessun testo fuori dal JSON):\n'
-    +'{"testo_estratto":"testo OCR trascritto dal passo 1",'
-    +'"materia":"nome materia","titolo":"titolo max 5 parole",'
-    +'"tipo_mappa":"radiale o lineare (lineare per matematica/sequenze, radiale per storia/scienze/geo)",'
-    +'"spiegazione":"spiegazione completa adatta alla eta",'
-    +'"vocale":"intro vocale max 2 frasi, tono caldo",'
-    +'"passi":[{"titolo":"Passo 1","testo":"spiegazione 2-3 frasi","tts":"versione breve da dire"}],'
-    +'"mappa":[{"titolo":"nodo","dettaglio":"spiegazione breve"}],'
-    +'"quiz":[{"domanda":"domanda?","opzioni":["giusta","sbagliata1","sbagliata2"],"corretta":0,"feedback":"Bravo perche..."}]}'
-    +'\nPassi: 3-4. Mappa: 3-5 nodi. Quiz: 3 domande con 3 opzioni, "corretta" e indice 0-2. Tutto in italiano.';
+  var systemPrompt='Sei ARIA, assistente scolastica. Aiuti '+name+', '+livello+(materia?'. Materia: '+materia:'.')+materiaExtra
+    +' Rispondi SEMPRE con un oggetto JSON valido, nessun testo fuori dal JSON.';
+
+  var userPrompt='Analizza questa immagine scolastica in due passi:\n'
+    +'1. OCR: trascrivi il testo visibile (max 200 caratteri) nel campo testo_estratto.\n'
+    +'2. ANALISI: spiega il contenuto in modo adatto all\'eta.\n\n'
+    +'Struttura JSON richiesta:\n'
+    +'{"testo_estratto":"testo letto dall\'immagine",'
+    +'"materia":"nome materia","titolo":"max 5 parole",'
+    +'"tipo_mappa":"radiale o lineare",'
+    +'"spiegazione":"spiegazione completa",'
+    +'"vocale":"intro max 2 frasi calde",'
+    +'"passi":[{"titolo":"titolo","testo":"2-3 frasi","tts":"versione breve"}],'
+    +'"mappa":[{"titolo":"nodo","dettaglio":"breve"}],'
+    +'"quiz":[{"domanda":"?","opzioni":["giusta","sbagliata1","sbagliata2"],"corretta":0,"feedback":"spiegazione"}]}\n'
+    +'Passi: 3-4. Mappa: 3-5 nodi. Quiz: 3 domande. Tutto in italiano.';
+
+  var dataUrl='data:'+compitiImageMime+';base64,'+compitiImageBase64;
+
+  var parsed=null;
+  var lastErr='';
+
+  // Tenta con tutte le chiavi Groq disponibili (fallback automatico)
+  for(var ki=0;ki<GROQ_KEYS.length;ki++){
+    var keyIdx=(groqKeyIndex+ki)%GROQ_KEYS.length;
+    var key=GROQ_KEYS[keyIdx];
+    console.log('[Compiti] Tentativo con chiave Groq index',keyIdx);
+    try{
+      var body={
+        model:'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages:[
+          {role:'system',content:systemPrompt},
+          {role:'user',content:[
+            {type:'image_url',image_url:{url:dataUrl}},
+            {type:'text',text:userPrompt}
+          ]}
+        ],
+        response_format:{type:'json_object'},
+        max_tokens:2000,
+        temperature:0.2
+      };
+      var res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body:JSON.stringify(body)
+      });
+      var data=await res.json();
+      console.log('[Compiti] Risposta Groq status:',res.status);
+
+      if(data.error){
+        lastErr=data.error.message||'errore API';
+        console.warn('[Compiti] Errore chiave',keyIdx,':',lastErr);
+        // Se rate limit prova la prossima chiave, altrimenti esci subito
+        if(res.status===429){groqKeyIndex=(keyIdx+1)%GROQ_KEYS.length;continue;}
+        throw new Error(lastErr);
+      }
+
+      var raw=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content)||'';
+      console.log('[Compiti] Raw JSON:', raw.substring(0,200));
+      parsed=JSON.parse(raw);
+      groqKeyIndex=(keyIdx+1)%GROQ_KEYS.length; // ruota per la prossima
+      break;
+
+    }catch(e){
+      lastErr=e.message||'errore sconosciuto';
+      console.warn('[Compiti] Fallback chiave',keyIdx,'— errore:',lastErr);
+      if(ki===GROQ_KEYS.length-1)throw new Error(lastErr);
+    }
+  }
 
   try{
-    var body={contents:[{parts:[{inline_data:{mime_type:compitiImageMime,data:compitiImageBase64}},{text:prompt}]}],generationConfig:{maxOutputTokens:1800,temperature:0.25}};
-    var res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    var data=await res.json();
+    if(!parsed)throw new Error('Nessuna risposta valida da Groq');
     document.getElementById('btnCompiti').disabled=false;
-
-    if(data.error){
-      console.error('[Compiti] Errore API Gemini:', data.error);
-      throw new Error('API: '+data.error.message);
-    }
-
-    var candidate=data.candidates&&data.candidates[0];
-    if(!candidate){
-      console.error('[Compiti] Nessun candidate nella risposta:', JSON.stringify(data));
-      throw new Error('Nessuna risposta dal modello');
-    }
-
-    var raw=((candidate.content&&candidate.content.parts&&candidate.content.parts[0]&&candidate.content.parts[0].text)||'').trim();
-    console.log('[Compiti] Risposta raw:', raw.substring(0,300));
-
-    if(!raw){
-      var reason=candidate.finishReason||'sconosciuto';
-      console.error('[Compiti] Testo vuoto. finishReason:', reason);
-      throw new Error('Risposta vuota (finishReason: '+reason+')');
-    }
-
-    var jsonStr=raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
-    var parsed;
-    try{
-      parsed=JSON.parse(jsonStr);
-    }catch(parseErr){
-      console.error('[Compiti] Errore parsing JSON:', parseErr.message, '\nStringa:', jsonStr.substring(0,300));
-      throw new Error('Risposta non in formato JSON valido');
-    }
     removeTyping();
 
     addBubble('user','\ud83d\udcf8 Compito di '+(parsed.materia||'?')+': '+(parsed.titolo||'analisi')
@@ -1593,7 +1615,7 @@ async function analizzaCompito(){
     }else{goIdleAfterSpeaking();}
 
   }catch(err){
-    console.error('[Compiti] Errore catch finale:', err.message||err);
+    console.error('[Compiti] Errore:', err.message||err);
     document.getElementById('btnCompiti').disabled=false;removeTyping();
     var em2='Ops, qualcosa non ha funzionato. Riprova tra un momento!';
     addBubble('aria',em2+' <span style="font-size:0.75rem;opacity:0.5;">('+((err&&err.message)||'errore sconosciuto')+')</span>');
