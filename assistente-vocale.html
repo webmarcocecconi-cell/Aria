@@ -837,16 +837,28 @@ function playWavBuffer(wavBuffer,emo,subtitleText){
 async function speakGeminiTTS(text){if(GEMINI_TTS_KEYS&&GEMINI_TTS_KEYS.length>0){var w=await fetchTTS(text);if(w)await playWavBuffer(w,'neutra',null);}}
 
 async function callGroq(){
-  var recentHistory=conversationHistory.slice(-6);var messages=[{role:'system',content:buildSystemPrompt()}].concat(recentHistory.map(function(m){return{role:m.role,content:m.content.replace(/\[EMO:[^\]]+\]/g,'').trim()};}));
-  for(var i=0;i<GROQ_KEYS.length;i++){
-    var idx=(groqKeyIndex+i)%GROQ_KEYS.length,key=GROQ_KEYS[idx];
-    var response=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'llama-3.3-70b-specdec',messages:messages,max_tokens:250,temperature:0.75})});
-    var data=await response.json();
-    if(data.error&&data.error.message&&data.error.message.indexOf('rate')>=0){groqKeyIndex=(idx+1)%GROQ_KEYS.length;continue;}
-    if(data.error)throw new Error(data.error.message||JSON.stringify(data.error));
-    groqKeyIndex=(idx+1)%GROQ_KEYS.length;return data.choices[0].message.content;
+  var recentHistory=conversationHistory.slice(-6);
+  // Pulisce EMO tag e filtra messaggi vuoti dalla history
+  var cleanHistory=recentHistory.map(function(m){return{role:m.role,content:m.content.replace(/\[EMO:[^\]]+\]/g,'').trim()};}).filter(function(m){return m.content.length>0;});
+  // Garantisce che la history non inizi con 'assistant' (Groq lo rifiuta)
+  while(cleanHistory.length>0&&cleanHistory[0].role==='assistant')cleanHistory.shift();
+  var messages=[{role:'system',content:buildSystemPrompt()}].concat(cleanHistory);
+  var models=['llama-3.3-70b-specdec','llama-3.3-70b-versatile'];
+  for(var mi=0;mi<models.length;mi++){
+    for(var i=0;i<GROQ_KEYS.length;i++){
+      var idx=(groqKeyIndex+i)%GROQ_KEYS.length,key=GROQ_KEYS[idx];
+      var response=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:models[mi],messages:messages,max_tokens:250,temperature:0.75})});
+      var data=await response.json();
+      if(data.error){
+        var emsg=data.error.message||JSON.stringify(data.error);
+        if(emsg.indexOf('rate')>=0||data.error.code===429){groqKeyIndex=(idx+1)%GROQ_KEYS.length;continue;}
+        // Errore 400 su questo modello → prova il prossimo modello
+        console.warn('Groq '+models[mi]+' error:',emsg);break;
+      }
+      groqKeyIndex=(idx+1)%GROQ_KEYS.length;return data.choices[0].message.content;
+    }
   }
-  throw new Error('Groq: tutte le chiavi in rate limit');
+  throw new Error('Groq non disponibile');
 }
 
 var GROUNDING_TRIGGERS=[
@@ -864,7 +876,11 @@ var GROUNDING_TRIGGERS=[
 function detectGroundingTrigger(text){return GROUNDING_TRIGGERS.some(function(re){return re.test(text.toLowerCase());});}
 async function callGeminiGrounded(){
   var key=GEMINI_TTS_KEYS[0];if(!key)throw new Error('Nessuna chiave Gemini');
-  var contents=conversationHistory.map(function(m){return{role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]};});
+  // Pulisce history: EMO tag rimossi, messaggi vuoti esclusi, non può iniziare con 'model'
+  var contents=conversationHistory.map(function(m){return{role:m.role==='assistant'?'model':'user',parts:[{text:m.content.replace(/\[EMO:[^\]]+\]/g,'').trim()}]};}).filter(function(c){return c.parts[0].text.length>0;});
+  while(contents.length>0&&contents[0].role==='model')contents.shift();
+  // Gemini richiede almeno un elemento in contents
+  if(!contents.length)throw new Error('Gemini grounding: history vuota');
   var response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system_instruction:{parts:[{text:buildSystemPrompt()}]},contents:contents,tools:[{google_search:{}}],generationConfig:{maxOutputTokens:300,temperature:0.75}})});
   var data=await response.json();if(data.error)throw new Error(data.error.message);
   var text=(data.candidates[0].content.parts||[]).map(function(p){return p.text||'';}).join('').trim();
