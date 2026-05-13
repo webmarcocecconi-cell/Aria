@@ -1154,7 +1154,10 @@ function goThinking(transcript){
 
 // askAriaFromTranscript: chiamato dopo trascrizione audio — bolla utente già aggiunta
 async function askAriaFromTranscript(userMsg){
-  if(!GROQ_KEY){openModal();return;}
+  // Controlla chiavi disponibili (robusto: usa GROQ_KEYS array, non GROQ_KEY statica)
+  if(!GROQ_KEYS||!GROQ_KEYS.length){openModal();return;}
+  // Gestisci richieste YouTube anche da voce
+  if(detectYoutubeTrigger(userMsg)){await handleYoutubeRequest(userMsg);return;}
   setState('thinking');addTyping();setEmotion('pensierosa');
   try{
     var pendingGrounding=false;
@@ -1177,12 +1180,18 @@ async function askAriaFromTranscript(userMsg){
       goSpeaking();document.getElementById('btnStop').style.display='flex';
       var wavBuffer=await ttsPromise;
       if(wavBuffer==='RATE_LIMITED'){
-        ttsRateLimited=true;showSubtitle('aria',cleanText);addBubble('aria','Scusa, ho la voce un po\' affaticata... leggi tu per ora! 😅');
-        document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();
+        ttsRateLimited=true;addBubble('aria',cleanText);showSubtitle('aria',cleanText);
+        document.getElementById('btnStop').style.display='flex';setEmotion('parlando');startMouthTalk();
+        speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
         clearTimeout(ttsRetryTimeout);ttsRetryTimeout=setTimeout(function(){ttsRateLimited=false;},60000);
-      }else if(wavBuffer){setEmotion('parlando');await playWavBuffer(wavBuffer,emo,cleanText);goIdleAfterSpeaking();}
-      else{showSubtitle('aria',cleanText);document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();}
-    }else{showSubtitle('aria',cleanText);setEmotion(emo||'neutra');goIdleAfterSpeaking();}
+      }else if(wavBuffer){addBubble('aria',cleanText);setEmotion('parlando');await playWavBuffer(wavBuffer,emo,cleanText);goIdleAfterSpeaking();}
+      else{addBubble('aria',cleanText);showSubtitle('aria',cleanText);document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();}
+    }else if(ttsRateLimited){
+      addBubble('aria',cleanText);showSubtitle('aria',cleanText);
+      setEmotion('parlando');startMouthTalk();
+      document.getElementById('btnStop').style.display='flex';
+      speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
+    }else{addBubble('aria',cleanText);showSubtitle('aria',cleanText);setEmotion(emo||'neutra');goIdleAfterSpeaking();}
   }catch(err){removeTyping();showSubtitle('aria','⚠️ '+(err.message||'Errore connessione.'));setEmotion('neutra');setState('idle');updateMicBtn();}
 }
 
