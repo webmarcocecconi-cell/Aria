@@ -818,7 +818,7 @@ async function fetchTTS(text){
   var body=JSON.stringify({contents:[{parts:[{text:text}]}],generationConfig:{response_modalities:['AUDIO'],speech_config:{voice_config:{prebuilt_voice_config:{voice_name:selectedGeminiVoice||'Kore'}}}}});
   for(var i=0;i<GEMINI_TTS_KEYS.length;i++){
     var idx=(geminiTtsKeyIndex+i)%GEMINI_TTS_KEYS.length,key=GEMINI_TTS_KEYS[idx];
-    var response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-tts:generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:body});
+    var response=await fetch('https://generativelanguage.googleapis.com/v1alpha/models/gemini-2.5-flash-tts:generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:body});
     var data=await response.json();
     if(data.error&&data.error.code===429){geminiTtsKeyIndex=(idx+1)%GEMINI_TTS_KEYS.length;continue;}
     if(data.error){console.error('TTS Gemini key',idx,'error:',data.error.code,data.error.message);throw new Error(data.error.message);}
