@@ -794,7 +794,12 @@ async function askAria(userMsg){
         document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();
         clearTimeout(ttsRetryTimeout);ttsRetryTimeout=setTimeout(function(){ttsRateLimited=false;},60000);
       }else if(wavBuffer){setEmotion('parlando');await playWavBuffer(wavBuffer,emo,cleanText);goIdleAfterSpeaking();}
-      else{showSubtitle('aria',cleanText);document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();}
+      else{
+        // TTS null — fallback browser
+        addBubble('aria',cleanText);showSubtitle('aria',cleanText);setEmotion('parlando');startMouthTalk();
+        document.getElementById('btnStop').style.display='flex';
+        speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
+      }
     }else if(ttsRateLimited){
       // Rate limit attivo — usa browser TTS
       showSubtitle('aria',cleanText);addBubble('aria',cleanText);
@@ -816,7 +821,7 @@ async function fetchTTS(text){
     var response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-tts:generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:body});
     var data=await response.json();
     if(data.error&&data.error.code===429){geminiTtsKeyIndex=(idx+1)%GEMINI_TTS_KEYS.length;continue;}
-    if(data.error)throw new Error(data.error.message);
+    if(data.error){console.error('TTS Gemini key',idx,'error:',data.error.code,data.error.message);throw new Error(data.error.message);}
     geminiTtsKeyIndex=(idx+1)%GEMINI_TTS_KEYS.length;
     return pcmToWav(base64ToArrayBuffer(data.candidates[0].content.parts[0].inlineData.data),24000,1,16);
   }
@@ -1258,7 +1263,12 @@ async function askAriaFromTranscript(userMsg){
         speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
         clearTimeout(ttsRetryTimeout);ttsRetryTimeout=setTimeout(function(){ttsRateLimited=false;},60000);
       }else if(wavBuffer){addBubble('aria',cleanText);setEmotion('parlando');await playWavBuffer(wavBuffer,emo,cleanText);goIdleAfterSpeaking();}
-      else{addBubble('aria',cleanText);showSubtitle('aria',cleanText);document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();}
+      else{
+        // TTS Gemini ha risposto null — fallback browser TTS
+        addBubble('aria',cleanText);showSubtitle('aria',cleanText);setEmotion('parlando');startMouthTalk();
+        document.getElementById('btnStop').style.display='flex';
+        speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
+      }
     }else if(ttsRateLimited){
       addBubble('aria',cleanText);showSubtitle('aria',cleanText);
       setEmotion('parlando');startMouthTalk();
@@ -1278,6 +1288,7 @@ function goIdleAfterSpeaking(){
       // Riavvia listening con timer esteso a 40s (l'utente ha appena sentito la risposta)
       clearTimeout(silenceTimer);
       setState('listening');accumulatedText='';updateMicBtn();setEmotion('ascoltando');
+      var _mv2=document.getElementById('micViz');if(_mv2)_mv2.classList.add('active');
       startListeningAttempt();
       silenceTimer=setTimeout(function(){
         if(VOICE_STATE==='listening'&&!isYoutubeOpen())startCountdown();
