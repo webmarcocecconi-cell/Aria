@@ -777,7 +777,7 @@ async function askAria(userMsg){
     }
     var useGrounding=(detectGroundingTrigger(userMsg)||pendingGrounding)&&GEMINI_TTS_KEYS.length>0;
     var fullText;
-    if(useGrounding){try{fullText=await callGeminiGrounded();lastProviderUsed='gemini-grounded';}catch(e){fullText=await callGroq();lastProviderUsed='groq';}}
+    if(useGrounding){console.log('ARIA grounding:',userMsg);try{fullText=await callGeminiGrounded();lastProviderUsed='gemini-grounded';}catch(e){fullText=await callGroq();lastProviderUsed='groq';}}
     else{fullText=await callGroq();lastProviderUsed='groq';}
     updateProviderBadge();
     var emoMatch=fullText.match(/\[EMO:([^\]]+)\]/);
@@ -848,7 +848,7 @@ async function callGroq(){
   // Garantisce che la history non inizi con 'assistant' (Groq lo rifiuta)
   while(cleanHistory.length>0&&cleanHistory[0].role==='assistant')cleanHistory.shift();
   var messages=[{role:'system',content:buildSystemPrompt()}].concat(cleanHistory);
-  var models=['llama-3.3-70b-specdec','llama-3.3-70b-versatile'];
+  var models=['llama-3.3-70b-versatile','llama-3.1-70b-versatile'];
   for(var mi=0;mi<models.length;mi++){
     for(var i=0;i<GROQ_KEYS.length;i++){
       var idx=(groqKeyIndex+i)%GROQ_KEYS.length,key=GROQ_KEYS[idx];
@@ -857,6 +857,8 @@ async function callGroq(){
       if(data.error){
         var emsg=data.error.message||JSON.stringify(data.error);
         if(emsg.indexOf('rate')>=0||data.error.code===429){groqKeyIndex=(idx+1)%GROQ_KEYS.length;continue;}
+        // Modello non disponibile → prova il prossimo modello
+        if(emsg.indexOf('decommissioned')>=0||emsg.indexOf('no longer supported')>=0||emsg.indexOf('not found')>=0||data.error.code===404){console.warn('Groq model',models[mi],'non disponibile, provo il prossimo');break;}
         // Errore 400 su questo modello → prova il prossimo modello
         console.warn('Groq '+models[mi]+' error:',emsg);break;
       }
@@ -1245,7 +1247,7 @@ async function askAriaFromTranscript(userMsg){
     }
     var useGrounding=(detectGroundingTrigger(userMsg)||pendingGrounding)&&GEMINI_TTS_KEYS.length>0;
     var fullText;
-    if(useGrounding){try{fullText=await callGeminiGrounded();lastProviderUsed='gemini-grounded';}catch(e){fullText=await callGroq();lastProviderUsed='groq';}}
+    if(useGrounding){console.log('ARIA grounding:',userMsg);try{fullText=await callGeminiGrounded();lastProviderUsed='gemini-grounded';}catch(e){fullText=await callGroq();lastProviderUsed='groq';}}
     else{fullText=await callGroq();lastProviderUsed='groq';}
     updateProviderBadge();
     var emoMatch=fullText.match(/\[EMO:([^\]]+)\]/);
