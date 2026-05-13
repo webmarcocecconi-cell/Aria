@@ -1052,8 +1052,6 @@ function startListeningAttempt(){
 
     // Analizzatore volume
     mrAnalyserCtx=new(window.AudioContext||window.webkitAudioContext)();
-    // Resume esplicito: Chrome sospende AudioContext finché non c'è un gesto utente
-    if(mrAnalyserCtx.state==='suspended')mrAnalyserCtx.resume().catch(function(){});
     var source=mrAnalyserCtx.createMediaStreamSource(stream);
     mrAnalyser=mrAnalyserCtx.createAnalyser();
     mrAnalyser.fftSize=512;
@@ -1070,7 +1068,6 @@ function startListeningAttempt(){
       mrAnalyser=null;
       var elapsed=Date.now()-mrRecordingStart;
       var hasAudio=mrChunks.length>0&&mrChunks.reduce(function(s,c){return s+c.size;},0)>1000;
-      // Invia se: ha parlato (VAD) OPPURE ci sono abbastanza dati audio (>800ms, >1KB) — fallback per microfoni con soglia difficile
       if((!mrWasSpeaking&&!hasAudio)||(!mrWasSpeaking&&elapsed<800)){
         mrChunks=[];
         if(VOICE_STATE==='listening')startListeningAttempt();
@@ -1082,10 +1079,12 @@ function startListeningAttempt(){
     };
     mrRecorder.start(100); // chunk ogni 100ms
 
-    // Loop analisi volume
-    var dataArray=new Uint8Array(mrAnalyser.frequencyBinCount);
-    var speechStartTime=null;
-    mrAnalyserInterval=setInterval(function(){
+    // Avvia loop analisi volume SOLO dopo che l'AudioContext è attivo
+    function startAnalyserLoop(){
+      _micVizBars=null; // reset cache barre per sicurezza
+      var dataArray=new Uint8Array(mrAnalyser.frequencyBinCount);
+      var speechStartTime=null;
+      mrAnalyserInterval=setInterval(function(){
       if(!mrAnalyser){clearInterval(mrAnalyserInterval);mrAnalyserInterval=null;return;}
       if(VOICE_STATE!=='listening'){
         // Se non siamo in listening, ferma l'interval ma non chiamare stopListening
@@ -1117,6 +1116,14 @@ function startListeningAttempt(){
         }
       }
     },100);
+    } // fine startAnalyserLoop
+
+    // Avvia loop SOLO dopo che AudioContext è running — garantisce dati reali
+    if(mrAnalyserCtx.state==='suspended'){
+      mrAnalyserCtx.resume().then(startAnalyserLoop).catch(startAnalyserLoop);
+    }else{
+      startAnalyserLoop();
+    }
 
   }).catch(function(err){
     setState('idle');updateMicBtn();
