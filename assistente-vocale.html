@@ -988,8 +988,8 @@ var mrAnalyserCtx=null;     // AudioContext dedicato all'analisi
 var mrSilenceTimer=null;    // timer silenzio → invia
 var mrWasSpeaking=false;    // l'utente ha parlato almeno una volta
 var mrAnalyserInterval=null;// interval per lettura volume
-var SILENCE_THRESHOLD=12;   // volume sotto questa soglia = silenzio (0-255)
-var SILENCE_DURATION=3000;  // ms di silenzio continuo → invia
+var SILENCE_THRESHOLD=18;   // volume sotto questa soglia = silenzio (0-255)
+var SILENCE_DURATION=1500;  // ms di silenzio continuo → invia
 var MIN_SPEECH_MS=300;      // ms minimi di parlato per evitare invii accidentali
 
 function startListeningAttempt(){
