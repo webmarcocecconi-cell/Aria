@@ -159,6 +159,11 @@
   .settings-title { font-size:0.8rem; color:var(--text); font-weight:600; }
   .settings-sub { font-size:0.65rem; color:var(--muted); margin-top:1px; }
   .settings-arrow { font-size:0.75rem; color:var(--muted); }
+  /* ── MIC VISUALIZER ── */
+  .mic-viz { display:flex; align-items:flex-end; justify-content:center; gap:3px; height:36px; width:130px; margin:6px auto 0; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+  .mic-viz.active { opacity:1; }
+  .mic-viz-bar { width:6px; border-radius:3px 3px 0 0; background:var(--state-listening); transition:height 0.08s ease-out; min-height:3px; flex-shrink:0; }
+  .mic-viz-bar.hot { background:var(--accent2); }
   @media (orientation:landscape) and (max-height:500px) {
     body { flex-direction:row; align-items:stretch; flex-wrap:wrap; overflow:hidden; }
     header { padding:10px 16px 4px; width:100%; flex-shrink:0; }
@@ -381,6 +386,23 @@
   </svg>
   <div class="eye left" id="eyeL" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;"><div class="iris" id="irisL"><div class="pupil"></div></div><div class="reflection"></div></div>
   <div class="eye right" id="eyeR" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;"><div class="iris" id="irisR"><div class="pupil"></div></div><div class="reflection"></div></div>
+</div>
+<!-- MIC VISUALIZER: 14 barre, alimentato dal VAD loop -->
+<div class="mic-viz" id="micViz">
+  <div class="mic-viz-bar" id="mvb0"></div>
+  <div class="mic-viz-bar" id="mvb1"></div>
+  <div class="mic-viz-bar" id="mvb2"></div>
+  <div class="mic-viz-bar" id="mvb3"></div>
+  <div class="mic-viz-bar" id="mvb4"></div>
+  <div class="mic-viz-bar" id="mvb5"></div>
+  <div class="mic-viz-bar" id="mvb6"></div>
+  <div class="mic-viz-bar" id="mvb7"></div>
+  <div class="mic-viz-bar" id="mvb8"></div>
+  <div class="mic-viz-bar" id="mvb9"></div>
+  <div class="mic-viz-bar" id="mvb10"></div>
+  <div class="mic-viz-bar" id="mvb11"></div>
+  <div class="mic-viz-bar" id="mvb12"></div>
+  <div class="mic-viz-bar" id="mvb13"></div>
 </div>
 </div><!-- fine face-col -->
 
@@ -970,6 +992,7 @@ function startListening(){
   }
   var banner=document.getElementById('wakeBanner');if(banner)banner.classList.remove('visible');
   setState('listening');accumulatedText='';clearTimeout(speechEndTimer);updateMicBtn();setEmotion('ascoltando');
+  var _mv=document.getElementById('micViz');if(_mv)_mv.classList.add('active');
   startListeningAttempt();
   silenceTimer=setTimeout(function(){if(VOICE_STATE==='listening'&&!isYoutubeOpen())startCountdown();},20000);
 }
@@ -988,7 +1011,7 @@ var mrAnalyserCtx=null;     // AudioContext dedicato all'analisi
 var mrSilenceTimer=null;    // timer silenzio → invia
 var mrWasSpeaking=false;    // l'utente ha parlato almeno una volta
 var mrAnalyserInterval=null;// interval per lettura volume
-var SILENCE_THRESHOLD=18;   // volume sotto questa soglia = silenzio (0-255)
+var SILENCE_THRESHOLD=8;   // volume sotto questa soglia = silenzio (0-255)
 var SILENCE_DURATION=1500;  // ms di silenzio continuo → invia
 var MIN_SPEECH_MS=300;      // ms minimi di parlato per evitare invii accidentali
 
@@ -1002,6 +1025,7 @@ function startListeningAttempt(){
     mrStream=stream;
     mrChunks=[];
     mrWasSpeaking=false;
+    var mrRecordingStart=Date.now();
 
     // Analizzatore volume
     mrAnalyserCtx=new(window.AudioContext||window.webkitAudioContext)();
@@ -1019,15 +1043,16 @@ function startListeningAttempt(){
       if(mrStream){mrStream.getTracks().forEach(function(t){t.stop();});mrStream=null;}
       if(mrAnalyserCtx){try{mrAnalyserCtx.close();}catch(e){}mrAnalyserCtx=null;}
       mrAnalyser=null;
-      if(!mrWasSpeaking||!mrChunks.length){
-        // Nessun parlato — riavvia solo se ancora in listening, altrimenti lascia stare
+      var elapsed=Date.now()-mrRecordingStart;
+      var hasAudio=mrChunks.length>0&&mrChunks.reduce(function(s,c){return s+c.size;},0)>1000;
+      // Invia se: ha parlato (VAD) OPPURE ci sono abbastanza dati audio (>800ms, >1KB) — fallback per microfoni con soglia difficile
+      if((!mrWasSpeaking&&!hasAudio)||(!mrWasSpeaking&&elapsed<800)){
         mrChunks=[];
         if(VOICE_STATE==='listening')startListeningAttempt();
         return;
       }
       var blob=new Blob(mrChunks,{type:mimeType});
       mrChunks=[];
-      // Invia audio solo se siamo ancora in uno stato valido
       if(VOICE_STATE==='listening'||VOICE_STATE==='countdown')goThinkingFromAudio(blob);
     };
     mrRecorder.start(100); // chunk ogni 100ms
@@ -1047,6 +1072,7 @@ function startListeningAttempt(){
       mrAnalyser.getByteFrequencyData(dataArray);
       var sum=0;for(var i=0;i<dataArray.length;i++)sum+=dataArray[i];
       var avg=sum/dataArray.length;
+      updateMicViz(dataArray,avg);
 
       if(avg>SILENCE_THRESHOLD){
         // Sta parlando
@@ -1073,7 +1099,31 @@ function startListeningAttempt(){
   });
 }
 
+
+// ── MIC VISUALIZER ──
+var _micVizBars=null;
+function updateMicViz(dataArray,avg){
+  if(!_micVizBars){
+    _micVizBars=[];
+    for(var i=0;i<14;i++){var b=document.getElementById('mvb'+i);if(b)_micVizBars.push(b);}
+  }
+  var N=_micVizBars.length;if(!N)return;
+  // Campiona N bande distribuite sullo spettro (focus sulle frequenze vocali)
+  var step=Math.floor(dataArray.length*0.6/N); // usa il 60% basso dello spettro (voce umana)
+  var maxH=33; // px max barra
+  var hot=avg>SILENCE_THRESHOLD;
+  for(var j=0;j<N;j++){
+    var val=dataArray[j*step]||0;
+    // Simmetria: le barre centrali più alte (forma a campana leggera)
+    var center=Math.abs(j-(N-1)/2)/((N-1)/2);
+    val=val*(1-center*0.25);
+    var h=Math.max(3,Math.round((val/255)*maxH));
+    _micVizBars[j].style.height=h+'px';
+    if(hot)_micVizBars[j].classList.add('hot');else _micVizBars[j].classList.remove('hot');
+  }
+}
 function stopListening(){
+  var _mv=document.getElementById('micViz');if(_mv){_mv.classList.remove('active');for(var _i=0;_i<14;_i++){var _b=document.getElementById('mvb'+_i);if(_b){_b.style.height='3px';_b.classList.remove('hot');}}}
   clearTimeout(mrSilenceTimer);mrSilenceTimer=null;
   clearInterval(mrAnalyserInterval);mrAnalyserInterval=null;
   if(mrRecorder&&mrRecorder.state==='recording'){try{mrRecorder.stop();}catch(e){}mrRecorder=null;}
@@ -1087,7 +1137,9 @@ function stopListening(){
 }
 
 function goThinkingFromAudio(blob){
-  goThinking(null); // setta stato thinking subito
+  // Imposta thinking direttamente — stopListening è già stato chiamato da mrSilenceTimer
+  clearTimeout(silenceTimer);silenceTimer=null;
+  setState('thinking');updateMicBtn();addTyping();setEmotion('pensierosa');
   // Usa Groq Whisper per la trascrizione — più veloce di Gemini (~300ms)
   var key=GROQ_KEYS[groqKeyIndex%GROQ_KEYS.length]||'';
   if(!key){setState('idle');updateMicBtn();startListening();return;}
