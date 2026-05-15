@@ -562,7 +562,7 @@ function startAriaAfterOnboarding(isNew){
 function unlockAudio(){
   try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();var buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.1,audioCtx.sampleRate);var src=audioCtx.createBufferSource();src.buffer=buf;src.connect(audioCtx.destination);src.start();}catch(e){}
   document.getElementById('audioUnlockOverlay').classList.add('hidden');
-  if(!GROQ_KEY|){openModal();return;}
+  if(!GROQ_KEYS||!GROQ_KEYS.length){openModal();return;}
   if(!userProfile.done){document.getElementById('onboardingOverlay').classList.remove('hidden');setTimeout(function(){document.getElementById('obName').focus();},300);}
   else{startAriaAfterOnboarding(false);}
 }
@@ -572,7 +572,8 @@ function confirmSetup(){
   if(!g1){document.getElementById('modalGroqKey').style.borderColor='#ef4444';return;}
   GROQ_KEYS=[g1,g2].filter(function(k){return k.length>0;});GROQ_KEY=GROQ_KEYS[0];groqKeyIndex=0;
   YOUTUBE_KEY=document.getElementById('modalYoutubeKey').value.trim();
-  localStorage.setItem('aria_groq_keys',GROQ_KEYS.join(',')));
+  localStorage.setItem('aria_groq_keys',GROQ_KEYS.join(','));
+  var gk=document.getElementById('modalGeminiKey');if(gk)localStorage.setItem('aria_gemini_key',gk.value.trim());
   if(YOUTUBE_KEY)localStorage.setItem('aria_youtube_key',YOUTUBE_KEY);
   closeModal();updateProviderBadge();
   if(!userProfile.done){document.getElementById('onboardingOverlay').classList.remove('hidden');setTimeout(function(){document.getElementById('obName').focus();},300);}
