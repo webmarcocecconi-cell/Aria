@@ -263,11 +263,9 @@
     <input type="password" class="modal-input" id="modalGroqKey" placeholder="Chiave 1 — gsk_..." style="margin-bottom:6px;" />
     <input type="password" class="modal-input" id="modalGroqKey2" placeholder="Chiave 2 — gsk_... (opzionale)" />
     <div class="modal-hint">Chiavi gratuite su <a href="https://console.groq.com" target="_blank">console.groq.com</a></div>
-    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent);letter-spacing:1px;margin-bottom:8px;margin-top:12px;">🟢 GEMINI TTS — voce (fino a 3 chiavi)</div>
-    <input type="password" class="modal-input" id="modalGeminiKey1" placeholder="Chiave 1 — AIza..." style="margin-bottom:6px;" />
-    <input type="password" class="modal-input" id="modalGeminiKey2" placeholder="Chiave 2 — AIza... (opzionale)" style="margin-bottom:6px;" />
-    <input type="password" class="modal-input" id="modalGeminiKey3" placeholder="Chiave 3 — AIza... (opzionale)" />
-    <div class="modal-hint" style="margin-bottom:16px;">Chiavi gratuite su <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a></div>
+    <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--accent);letter-spacing:1px;margin-bottom:8px;margin-top:12px;">🟢 GEMINI — ricerca notizie (opzionale)</div>
+    <input type="password" class="modal-input" id="modalGeminiKey" placeholder="Chiave Gemini — AIza..." style="margin-bottom:6px;" />
+    <div class="modal-hint" style="margin-bottom:16px;">Su <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a></div>
     <div style="font-family:'Space Mono',monospace;font-size:0.65rem;color:#f59e0b;letter-spacing:1px;margin-bottom:8px;margin-top:12px;">🔴 YOUTUBE — ricerca video (opzionale)</div>
     <input type="password" class="modal-input" id="modalYoutubeKey" placeholder="Chiave YouTube Data API v3 — AIza..." />
     <div class="modal-hint" style="margin-bottom:16px;">Su <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a></div>
@@ -279,7 +277,6 @@
 <div class="modal-overlay hidden" id="voiceModal">
   <div class="modal-box">
     <div class="modal-title">🔊 SCEGLI LA VOCE</div>
-    <div class="modal-sub">Voci Gemini TTS. Tocca per l'anteprima.</div>
     <div id="voiceList" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
     <button class="btn-confirm" onclick="closeVoiceModal()">✓ Conferma</button>
   </div>
@@ -296,7 +293,6 @@
 <div class="settings-menu" id="settingsMenu">
   <div class="settings-item" onclick="openVoiceModal();closeSettingsMenu();">
     <div class="settings-icon" style="background:rgba(52,211,153,0.12);">🔊</div>
-    <div class="settings-label"><div class="settings-title">Voce</div><div class="settings-sub" id="voiceBadge">Kore — Gemini TTS</div></div>
     <div class="settings-arrow">›</div>
   </div>
   <div class="settings-item" onclick="exportMemory();closeSettingsMenu();">
@@ -311,7 +307,6 @@
   </div>
   <div class="settings-item" onclick="openModal();closeSettingsMenu();">
     <div class="settings-icon" style="background:rgba(124,109,250,0.12);">🔑</div>
-    <div class="settings-label"><div class="settings-title">Chiavi API</div><div class="settings-sub" id="providerBadge">Groq + Gemini TTS</div></div>
     <div class="settings-arrow">›</div>
   </div>
 </div>
@@ -458,16 +453,11 @@
 var GROQ_KEYS = (localStorage.getItem('aria_groq_keys')||localStorage.getItem('aria_groq_key')||'').split(',').filter(function(k){return k.trim();});
 var GROQ_KEY = GROQ_KEYS[0]||'';
 var groqKeyIndex = 0;
-var GEMINI_TTS_KEYS = (localStorage.getItem('aria_gemini_tts_keys')||'').split(',').filter(function(k){return k.trim();});
-var geminiTtsKeyIndex = 0;
 var YOUTUBE_KEY = localStorage.getItem('aria_youtube_key')||'';
 var MEMORY_MAX = 50;
 var ariaMemory = JSON.parse(localStorage.getItem('aria_memory')||'[]');
 var memoryExtracted = false;
-var ttsRateLimited = false;
-var ttsRetryTimeout = null;
 var lastProviderUsed = 'groq';
-var selectedGeminiVoice = localStorage.getItem('aria_gemini_voice')||'Kore';
 var currentAudio = null;
 var audioCtx = null;
 var conversationHistory = [];
@@ -572,58 +562,33 @@ function startAriaAfterOnboarding(isNew){
 function unlockAudio(){
   try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();var buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.1,audioCtx.sampleRate);var src=audioCtx.createBufferSource();src.buffer=buf;src.connect(audioCtx.destination);src.start();}catch(e){}
   document.getElementById('audioUnlockOverlay').classList.add('hidden');
-  if(!GROQ_KEY||!GEMINI_TTS_KEYS.length){openModal();return;}
+  if(!GROQ_KEY|){openModal();return;}
   if(!userProfile.done){document.getElementById('onboardingOverlay').classList.remove('hidden');setTimeout(function(){document.getElementById('obName').focus();},300);}
   else{startAriaAfterOnboarding(false);}
 }
 
 function confirmSetup(){
   var g1=document.getElementById('modalGroqKey').value.trim(),g2=document.getElementById('modalGroqKey2').value.trim();
-  var m1=document.getElementById('modalGeminiKey1').value.trim(),m2=document.getElementById('modalGeminiKey2').value.trim(),m3=document.getElementById('modalGeminiKey3').value.trim();
   if(!g1){document.getElementById('modalGroqKey').style.borderColor='#ef4444';return;}
-  if(!m1){document.getElementById('modalGeminiKey1').style.borderColor='#ef4444';return;}
   GROQ_KEYS=[g1,g2].filter(function(k){return k.length>0;});GROQ_KEY=GROQ_KEYS[0];groqKeyIndex=0;
-  GEMINI_TTS_KEYS=[m1,m2,m3].filter(function(k){return k.length>0;});geminiTtsKeyIndex=0;
   YOUTUBE_KEY=document.getElementById('modalYoutubeKey').value.trim();
-  localStorage.setItem('aria_groq_keys',GROQ_KEYS.join(','));localStorage.setItem('aria_gemini_tts_keys',GEMINI_TTS_KEYS.join(','));
+  localStorage.setItem('aria_groq_keys',GROQ_KEYS.join(',')));
   if(YOUTUBE_KEY)localStorage.setItem('aria_youtube_key',YOUTUBE_KEY);
   closeModal();updateProviderBadge();
   if(!userProfile.done){document.getElementById('onboardingOverlay').classList.remove('hidden');setTimeout(function(){document.getElementById('obName').focus();},300);}
   else{startAriaAfterOnboarding(false);}
 }
 function openModal(){
-  var sg=(localStorage.getItem('aria_groq_keys')||'').split(','),sm=(localStorage.getItem('aria_gemini_tts_keys')||'').split(',');
+  var sg=(localStorage.getItem('aria_groq_keys')||'').split(',');var sgm=localStorage.getItem('aria_gemini_key')||'';
   if(sg[0])document.getElementById('modalGroqKey').value=sg[0];if(sg[1])document.getElementById('modalGroqKey2').value=sg[1];
-  if(sm[0])document.getElementById('modalGeminiKey1').value=sm[0];if(sm[1])document.getElementById('modalGeminiKey2').value=sm[1];if(sm[2])document.getElementById('modalGeminiKey3').value=sm[2];
+  if(sgm)document.getElementById('modalGeminiKey').value=sgm;
   var yt=localStorage.getItem('aria_youtube_key')||'';if(yt)document.getElementById('modalYoutubeKey').value=yt;
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
 function closeModal(){document.getElementById('modalOverlay').classList.add('hidden');}
-function openVoiceModal(){populateVoiceList();document.getElementById('voiceModal').classList.remove('hidden');}
 function closeVoiceModal(){document.getElementById('voiceModal').classList.add('hidden');}
 
-var GEMINI_VOICES=['Zephyr','Puck','Charon','Kore','Fenrir','Leda','Orus','Aoede','Callirrhoe','Autonoe','Enceladus','Iapetus','Umbriel','Algieba','Despina','Erinome','Algenib','Rasalgethi','Laomedeia','Achernar','Alnilam','Schedar','Gacrux','Pulcherrima','Achird','Zubenelgenubi','Vindemiatrix','Sadachbia','Sadaltager','Sulafat'];
 
-function populateVoiceList(){
-  var list=document.getElementById('voiceList');list.innerHTML='';
-  var vd={'Kore':'Femminile · calda e decisa','Aoede':'Femminile · melodiosa e fluida','Leda':'Femminile · chiara e naturale','Pulcherrima':'Femminile · brillante e vivace','Vindemiatrix':'Femminile · morbida e gentile','Sulafat':'Femminile · espressiva','Zephyr':'Neutrale · ariosa','Puck':'Neutrale · energica','Charon':'Maschile · profondo','Fenrir':'Maschile · deciso'};
-  var rec=['Kore','Aoede','Leda','Pulcherrima','Vindemiatrix','Sulafat'];
-  var ordered=rec.concat(GEMINI_VOICES.filter(function(v){return rec.indexOf(v)===-1;}));
-  var lbl=document.createElement('div');lbl.style.cssText='font-size:0.7rem;color:var(--accent3);letter-spacing:1px;margin-bottom:4px;font-family:Space Mono,monospace;';lbl.textContent='✨ VOCI CONSIGLIATE PER ITALIANO';list.appendChild(lbl);
-  ordered.forEach(function(name,idx){
-    if(idx===rec.length){var sep=document.createElement('div');sep.style.cssText='font-size:0.7rem;color:var(--muted);letter-spacing:1px;margin:8px 0 4px;font-family:Space Mono,monospace;';sep.textContent='─── ALTRE VOCI ───';list.appendChild(sep);}
-    var btn=document.createElement('button');
-    btn.style.cssText='background:var(--surface);border:2px solid '+(selectedGeminiVoice===name?'var(--accent)':'var(--border)')+';border-radius:12px;padding:10px 14px;cursor:pointer;text-align:left;color:var(--text);width:100%;';
-    btn.innerHTML='<span style="font-size:0.85rem;font-weight:600;">🔊 '+name+'</span><span style="display:block;font-size:0.68rem;color:var(--muted);margin-top:2px;">'+(vd[name]||'Voce Gemini')+'</span>';
-    btn.onclick=function(){
-      selectedGeminiVoice=name;localStorage.setItem('aria_gemini_voice',name);
-      document.getElementById('voiceBadge').textContent='🔊 '+name.toUpperCase();
-      list.querySelectorAll('button').forEach(function(b){b.style.borderColor='var(--border)';});btn.style.borderColor='var(--accent)';
-      speakGeminiTTS('Ciao! Sono ARIA, come stai oggi?').catch(function(){});
-    };
-    list.appendChild(btn);
-  });
-}
 
 function toggleSettingsMenu(){
   var menu=document.getElementById('settingsMenu'),btn=document.getElementById('settingsBtn');
@@ -765,7 +730,7 @@ function removeTyping(){var t=document.getElementById('typingBubble');if(t)t.rem
 // API
 // ═══════════════════════════════════════════════════
 async function askAria(userMsg){
-  if(!GROQ_KEY){openModal();return;}
+  if(!GROQ_KEYS||!GROQ_KEYS.length){openModal();return;}
   if(detectYoutubeTrigger(userMsg)){addBubble('user',userMsg);conversationHistory.push({role:'user',content:userMsg});await handleYoutubeRequest(userMsg);return;}
   addBubble('user',userMsg);conversationHistory.push({role:'user',content:userMsg});
   clearTimeout(silenceTimer);silenceTimer=null;setState('thinking');addTyping();setEmotion('pensierosa');
@@ -775,7 +740,7 @@ async function askAria(userMsg){
       var prev='';for(var i=conversationHistory.length-2;i>=0;i--){if(conversationHistory[i].role==='assistant'){prev=conversationHistory[i].content.toLowerCase();break;}}
       if(/\b(quale città|che città|dove sei|in quale città|in che città|dove ti trovi|da che parte)\b/.test(prev))pendingGrounding=true;
     }
-    var useGrounding=(detectGroundingTrigger(userMsg)||pendingGrounding)&&GEMINI_TTS_KEYS.length>0;
+    var useGrounding=(detectGroundingTrigger(userMsg)||pendingGrounding);
     var fullText;
     if(useGrounding){console.log('ARIA grounding:',userMsg);try{fullText=await callGeminiGrounded();lastProviderUsed='gemini-grounded';}catch(e){fullText=await callGroq();lastProviderUsed='groq';}}
     else{fullText=await callGroq();lastProviderUsed='groq';}
@@ -784,49 +749,14 @@ async function askAria(userMsg){
     var emo=emoMatch?emoMatch[1]:'neutra';
     var cleanText=fullText.replace(/\[EMO:[^\]]+\]/g,'').trim();
     removeTyping();conversationHistory.push({role:'assistant',content:fullText});setEmotion(emo);
-    if(GEMINI_TTS_KEYS&&GEMINI_TTS_KEYS.length>0&&!ttsRateLimited){
-      if(currentAudio){try{currentAudio.pause();}catch(e){}currentAudio=null;}
-      var ttsPromise=fetchTTS(cleanText).catch(function(e){return(e&&(e.isRateLimit||(e.message&&e.message.indexOf('rate limit')>=0)))?'RATE_LIMITED':null;});
-      goSpeaking();document.getElementById('btnStop').style.display='flex';
-      var wavBuffer=await ttsPromise;
-      if(wavBuffer==='RATE_LIMITED'){
-        ttsRateLimited=true;showSubtitle('aria',cleanText);addBubble('aria','Scusa, ho la voce un po\' affaticata... leggi tu per ora! 😅');
-        document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();
-        clearTimeout(ttsRetryTimeout);ttsRetryTimeout=setTimeout(function(){ttsRateLimited=false;},60000);
-      }else if(wavBuffer){setEmotion('parlando');await playWavBuffer(wavBuffer,emo,cleanText);goIdleAfterSpeaking();}
-      else{
-        // TTS null — fallback browser
-        addBubble('aria',cleanText);showSubtitle('aria',cleanText);setEmotion('parlando');startMouthTalk();
-        document.getElementById('btnStop').style.display='flex';
-        speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
-      }
-    }else if(ttsRateLimited){
-      // Rate limit attivo — usa browser TTS
-      showSubtitle('aria',cleanText);addBubble('aria',cleanText);
-      setEmotion('parlando');startMouthTalk();
-      document.getElementById('btnStop').style.display='flex';
-      speakWithBrowser(cleanText,function(){
-        stopMouthTalk();animateMouth('neutra');
-        document.getElementById('btnStop').style.display='none';
-        goIdleAfterSpeaking();
-      });
-    }else{showSubtitle('aria',cleanText);setEmotion(emo||'neutra');goIdleAfterSpeaking();}
+    addBubble('aria',cleanText);showSubtitle('aria',cleanText);
+    setEmotion('parlando');startMouthTalk();
+    document.getElementById('btnStop').style.display='flex';
+    speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
+
   }catch(err){removeTyping();showSubtitle('aria','⚠️ '+(err.message||'Errore connessione.'));setEmotion('neutra');setState('idle');updateMicBtn();}
 }
 
-async function fetchTTS(text){
-  var body=JSON.stringify({contents:[{parts:[{text:text}]}],generationConfig:{response_modalities:['AUDIO'],speech_config:{voice_config:{prebuilt_voice_config:{voice_name:selectedGeminiVoice||'Kore'}}}}});
-  for(var i=0;i<GEMINI_TTS_KEYS.length;i++){
-    var idx=(geminiTtsKeyIndex+i)%GEMINI_TTS_KEYS.length,key=GEMINI_TTS_KEYS[idx];
-    var response=await fetch('https://generativelanguage.googleapis.com/v1alpha/models/gemini-2.5-flash-tts:generateContent?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:body});
-    var data=await response.json();
-    if(data.error&&data.error.code===429){geminiTtsKeyIndex=(idx+1)%GEMINI_TTS_KEYS.length;continue;}
-    if(data.error){console.error('TTS Gemini key',idx,'error:',data.error.code,data.error.message);throw new Error(data.error.message);}
-    geminiTtsKeyIndex=(idx+1)%GEMINI_TTS_KEYS.length;
-    return pcmToWav(base64ToArrayBuffer(data.candidates[0].content.parts[0].inlineData.data),24000,1,16);
-  }
-  var err=new Error('TTS: tutte le chiavi in rate limit');err.isRateLimit=true;throw err;
-}
 function playWavBuffer(wavBuffer,emo,subtitleText){
   return new Promise(function(resolve){
     function onDone(){stopMouthTalk();setEmotion(emo||'neutra');document.getElementById('btnStop').style.display='none';resolve();}
@@ -839,8 +769,6 @@ function playWavBuffer(wavBuffer,emo,subtitleText){
     }else{onStart();playWithAudioElement(wavBuffer,onDone);}
   });
 }
-async function speakGeminiTTS(text){if(GEMINI_TTS_KEYS&&GEMINI_TTS_KEYS.length>0){var w=await fetchTTS(text);if(w)await playWavBuffer(w,'neutra',null);}}
-
 async function callGroq(){
   var recentHistory=conversationHistory.slice(-6);
   // Pulisce EMO tag e filtra messaggi vuoti dalla history
@@ -882,7 +810,7 @@ var GROUNDING_TRIGGERS=[
 ];
 function detectGroundingTrigger(text){return GROUNDING_TRIGGERS.some(function(re){return re.test(text.toLowerCase());});}
 async function callGeminiGrounded(){
-  var key=GEMINI_TTS_KEYS[0];if(!key)throw new Error('Nessuna chiave Gemini');
+  var key=localStorage.getItem('aria_gemini_key')||'';if(!key)throw new Error('Nessuna chiave Gemini');
   // Pulisce history: EMO tag rimossi, messaggi vuoti esclusi, non può iniziare con 'model'
   var contents=conversationHistory.map(function(m){return{role:m.role==='assistant'?'model':'user',parts:[{text:m.content.replace(/\[EMO:[^\]]+\]/g,'').trim()}]};}).filter(function(c){return c.parts[0].text.length>0;});
   while(contents.length>0&&contents[0].role==='model')contents.shift();
@@ -1208,7 +1136,7 @@ function goThinkingFromAudioGemini(blob){
   reader.onloadend=async function(){
     var b64=reader.result.split(',')[1];
     var mime=blob.type.split(';')[0]||'audio/webm';
-    var key=GEMINI_TTS_KEYS[0]||'';
+    var key=localStorage.getItem('aria_gemini_key')||'';
     if(!key){setState('idle');updateMicBtn();startListening();return;}
     try{
       var res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+key,{
@@ -1252,7 +1180,7 @@ async function askAriaFromTranscript(userMsg){
       var prev='';for(var i=conversationHistory.length-2;i>=0;i--){if(conversationHistory[i].role==='assistant'){prev=conversationHistory[i].content.toLowerCase();break;}}
       if(/\b(quale città|che città|dove sei|in quale città|in che città|dove ti trovi|da che parte)\b/.test(prev))pendingGrounding=true;
     }
-    var useGrounding=(detectGroundingTrigger(userMsg)||pendingGrounding)&&GEMINI_TTS_KEYS.length>0;
+    var useGrounding=(detectGroundingTrigger(userMsg)||pendingGrounding);
     var fullText;
     if(useGrounding){console.log('ARIA grounding:',userMsg);try{fullText=await callGeminiGrounded();lastProviderUsed='gemini-grounded';}catch(e){fullText=await callGroq();lastProviderUsed='groq';}}
     else{fullText=await callGroq();lastProviderUsed='groq';}
@@ -1261,29 +1189,11 @@ async function askAriaFromTranscript(userMsg){
     var emo=emoMatch?emoMatch[1]:'neutra';
     var cleanText=fullText.replace(/\[EMO:[^\]]+\]/g,'').trim();
     removeTyping();conversationHistory.push({role:'assistant',content:fullText});setEmotion(emo);
-    if(GEMINI_TTS_KEYS&&GEMINI_TTS_KEYS.length>0&&!ttsRateLimited){
-      if(currentAudio){try{currentAudio.pause();}catch(e){}currentAudio=null;}
-      var ttsPromise=fetchTTS(cleanText).catch(function(e){return(e&&(e.isRateLimit||(e.message&&e.message.indexOf('rate limit')>=0)))?'RATE_LIMITED':null;});
-      goSpeaking();document.getElementById('btnStop').style.display='flex';
-      var wavBuffer=await ttsPromise;
-      if(wavBuffer==='RATE_LIMITED'){
-        ttsRateLimited=true;addBubble('aria',cleanText);showSubtitle('aria',cleanText);
-        document.getElementById('btnStop').style.display='flex';setEmotion('parlando');startMouthTalk();
-        speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
-        clearTimeout(ttsRetryTimeout);ttsRetryTimeout=setTimeout(function(){ttsRateLimited=false;},60000);
-      }else if(wavBuffer){addBubble('aria',cleanText);setEmotion('parlando');await playWavBuffer(wavBuffer,emo,cleanText);goIdleAfterSpeaking();}
-      else{
-        // TTS Gemini ha risposto null — fallback browser TTS
-        addBubble('aria',cleanText);showSubtitle('aria',cleanText);setEmotion('parlando');startMouthTalk();
-        document.getElementById('btnStop').style.display='flex';
-        speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
-      }
-    }else if(ttsRateLimited){
-      addBubble('aria',cleanText);showSubtitle('aria',cleanText);
-      setEmotion('parlando');startMouthTalk();
-      document.getElementById('btnStop').style.display='flex';
-      speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
-    }else{addBubble('aria',cleanText);showSubtitle('aria',cleanText);setEmotion(emo||'neutra');goIdleAfterSpeaking();}
+    addBubble('aria',cleanText);showSubtitle('aria',cleanText);
+    setEmotion('parlando');startMouthTalk();
+    document.getElementById('btnStop').style.display='flex';
+    speakWithBrowser(cleanText,function(){stopMouthTalk();animateMouth('neutra');document.getElementById('btnStop').style.display='none';goIdleAfterSpeaking();});
+
   }catch(err){removeTyping();showSubtitle('aria','⚠️ '+(err.message||'Errore connessione.'));setEmotion('neutra');setState('idle');updateMicBtn();}
 }
 
@@ -1396,10 +1306,7 @@ function updateMicBtn(){
 }
 
 async function playShortTTS(text,callback){
-  if(!GEMINI_TTS_KEYS||!GEMINI_TTS_KEYS.length){if(callback)setTimeout(callback,500);return;}
-  if(currentAudio){try{currentAudio.pause();}catch(e){}currentAudio=null;}
-  try{var w=await fetchTTS(text);playWithAudioElement(w,callback||function(){});}
-  catch(e){if(callback)setTimeout(callback,500);}
+  speakWithBrowser(text,callback||function(){});
 }
 
 function sendText(){var input=document.getElementById('textInput'),msg=input.value.trim();if(!msg)return;input.value='';askAria(msg);}
